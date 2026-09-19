@@ -1,0 +1,164 @@
+<style>
+#erd svg.erDiagram .divider path { stroke-opacity: 0.5; }
+#erd svg.erDiagram .row-rect-odd path,
+#erd svg.erDiagram .row-rect-odd rect,
+#erd svg.erDiagram .row-rect-even path,
+#erd svg.erDiagram .row-rect-even rect { stroke: none !important; }
+#erd svg.erDiagram text { fill: #1a1a1a !important; color: #1a1a1a !important; }
+#erd svg.erDiagram .entityBox rect { fill: #f9f8f6 !important; stroke: #999999 !important; stroke-width: 1.5px !important; }
+#erd svg.erDiagram .entityLabel { color: #1a1a1a !important; fill: #1a1a1a !important; }
+#erd svg text { fill: #1a1a1a !important; }
+#erd tspan { fill: #1a1a1a !important; }
+</style>
+<div id="erd"></div>
+<script type="module">
+import mermaid from 'https://esm.sh/mermaid@11/dist/mermaid.esm.min.mjs';
+await document.fonts.ready;
+mermaid.initialize({
+  startOnLoad: false,
+  theme: 'base',
+  fontFamily: '"anthropic-sans", sans-serif',
+  themeVariables: {
+    darkMode: false,
+    fontSize: '13px',
+    fontFamily: '"anthropic-sans", sans-serif',
+    primaryColor: '#f9f8f6',
+    primaryBorderColor: '#999999',
+    lineColor: '#666666',
+    textColor: '#1a1a1a',
+    tertiaryColor: '#f0ebe1',
+  },
+});
+const diagram = `erDiagram
+  USERS ||--o{ STUDENTS : "can be"
+  USERS ||--o{ TEACHERS : "can be"
+  USERS ||--o{ ADMINS : "can be"
+  USERS {
+    uuid user_id PK
+    string email
+    string password_hash
+    string full_name
+    enum role "student|teacher|admin"
+    timestamp created_at
+    timestamp last_login
+  }
+  STUDENTS {
+    uuid student_id PK
+    uuid user_id FK
+    uuid class_id FK
+    timestamp enrollment_date
+  }
+  TEACHERS {
+    uuid teacher_id PK
+    uuid user_id FK
+    string department
+    timestamp hire_date
+  }
+  ADMINS {
+    uuid admin_id PK
+    uuid user_id FK
+    string permission_level
+    timestamp appointed_date
+  }
+  CLASSES {
+    uuid class_id PK
+    string class_name
+    uuid teacher_id FK
+    int max_students
+  }
+  CLASSES ||--o{ STUDENTS : "enrolls"
+  TEACHERS ||--o{ CLASSES : "teaches"
+  CLASSES ||--o{ SUBJECTS : "offers"
+  SUBJECTS {
+    uuid subject_id PK
+    string subject_name
+    string code
+    int credit_hours
+  }
+  STUDENTS ||--o{ GRADE_ENTRIES : "receives"
+  TEACHERS ||--o{ GRADE_ENTRIES : "assigns"
+  SUBJECTS ||--o{ GRADE_ENTRIES : "for"
+  GRADE_ENTRIES {
+    uuid grade_id PK
+    uuid student_id FK
+    uuid teacher_id FK
+    uuid subject_id FK
+    float score
+    string letter_grade
+    timestamp created_at
+    timestamp updated_at
+  }
+  GRADE_ENTRIES ||--o{ FEEDBACK : "has"
+  FEEDBACK {
+    uuid feedback_id PK
+    uuid grade_id FK
+    text remarks
+    timestamp created_at
+    timestamp updated_at
+  }
+  GRADE_ENTRIES ||--o{ GRADE_HISTORY : "tracked by"
+  GRADE_HISTORY {
+    uuid history_id PK
+    uuid grade_id FK
+    float previous_score
+    float current_score
+    string change_reason
+    timestamp changed_at
+  }
+  USERS ||--o{ AUDIT_LOG : "performs"
+  ADMINS ||--o{ GRADE_ENTRIES : "can override"
+  AUDIT_LOG {
+    uuid audit_id PK
+    uuid user_id FK
+    string action "add|update|delete|view|override"
+    string table_name
+    uuid record_id
+    text changes
+    timestamp timestamp
+  }
+`;
+const { svg } = await mermaid.render('erd-svg', diagram);
+document.getElementById('erd').innerHTML = svg;
+
+setTimeout(() => {
+  // Round entity box corners
+  document.querySelectorAll('#erd svg.erDiagram .node').forEach(node => {
+    const firstPath = node.querySelector('path[d]');
+    if (!firstPath) return;
+    const d = firstPath.getAttribute('d');
+    const nums = d.match(/-?[\d.]+/g)?.map(Number);
+    if (!nums || nums.length < 8) return;
+    const xs = [nums[0], nums[2], nums[4], nums[6]];
+    const ys = [nums[1], nums[3], nums[5], nums[7]];
+    const x = Math.min(...xs), y = Math.min(...ys);
+    const w = Math.max(...xs) - x, h = Math.max(...ys) - y;
+    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.setAttribute('x', x); rect.setAttribute('y', y);
+    rect.setAttribute('width', w); rect.setAttribute('height', h);
+    rect.setAttribute('rx', '8');
+    rect.setAttribute('fill', '#f9f8f6');
+    rect.setAttribute('stroke', '#999999');
+    rect.setAttribute('stroke-width', '1.5');
+    firstPath.replaceWith(rect);
+  });
+
+  // Strip borders from attribute rows
+  document.querySelectorAll('#erd svg.erDiagram .row-rect-odd path, #erd svg.erDiagram .row-rect-even path').forEach(p => {
+    p.setAttribute('stroke', 'none');
+  });
+
+  // Force all text to dark color
+  document.querySelectorAll('#erd svg text, #erd svg tspan').forEach(text => {
+    text.setAttribute('fill', '#1a1a1a');
+    text.style.fill = '#1a1a1a';
+    text.style.color = '#1a1a1a';
+  });
+
+  // Make entity backgrounds consistent
+  document.querySelectorAll('#erd svg.erDiagram .entityBox rect').forEach(rect => {
+    rect.setAttribute('fill', '#f9f8f6');
+    rect.setAttribute('stroke', '#999999');
+    rect.setAttribute('stroke-width', '1.5');
+  });
+}, 100);
+</script>
