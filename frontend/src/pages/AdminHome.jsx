@@ -2895,13 +2895,19 @@ function GradeManagementTab() {
         <div style={s.pageSub}>Search and adjust grade entries as an administrator.</div>
       </div>
 
-      <div style={{ ...s.panel, maxWidth: 520 }}>
+      <div style={{ ...s.panel, width: '100%', flex: '0 0 auto', boxSizing: 'border-box' }}>
         <PanelTitle>Search Filters</PanelTitle>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <div style={{ position: 'relative', flex: '1 1 100%' }}>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'minmax(260px, 2fr) repeat(3, minmax(150px, 1fr)) 42px',
+          gap: 12,
+          alignItems: 'end',
+        }}>
+          <div style={{ position: 'relative', minWidth: 0 }}>
+            <label style={s.label}>Student</label>
             <input
               style={s.input}
-              placeholder="Student ID (school number)"
+              placeholder="Student ID or name"
               value={filters.student}
               onChange={(e) => {
                 setFilters({ ...filters, student: e.target.value });
@@ -2948,50 +2954,89 @@ function GradeManagementTab() {
               </div>
             )}
           </div>
-          <select
-            style={s.input}
-            value={filters.term}
-            onChange={(e) => setFilters({ ...filters, term: e.target.value })}
-          >
-            <option value="">All Terms</option>
-            {(termsList || []).map((t) => {
-              const display = t.label || (t.year_start && t.year_end && t.semester ? `${t.year_start}-${t.year_end} - Sem ${t.semester}` : (t.name || t.id));
-              return <option key={t.id} value={t.id}>{display}</option>;
-            })}
-          </select>
+          <Field label="Academic Term">
+            <select
+              style={s.input}
+              value={filters.term}
+              onChange={(e) => setFilters({ ...filters, term: e.target.value })}
+            >
+              <option value="">All Terms</option>
+              {(termsList || []).map((t) => {
+                const display = t.label || (t.year_start && t.year_end && t.semester ? `${t.year_start}-${t.year_end} - Sem ${t.semester}` : (t.name || t.id));
+                return <option key={t.id} value={t.id}>{display}</option>;
+              })}
+            </select>
+          </Field>
 
-          <select
-            style={s.input}
-            value={filters.period}
-            onChange={(e) => setFilters({ ...filters, period: e.target.value })}
+          <Field label="Grading Period">
+            <select
+              style={s.input}
+              value={filters.period}
+              onChange={(e) => setFilters({ ...filters, period: e.target.value })}
+            >
+              <option value="">All Periods</option>
+              <option value="prelim">Prelim</option>
+              <option value="midterm">Midterm</option>
+              <option value="finals">Finals</option>
+            </select>
+          </Field>
+
+          <Field label="Subject">
+            <select
+              style={s.input}
+              value={filters.discipline}
+              onChange={(e) => setFilters({ ...filters, discipline: e.target.value })}
+            >
+              <option value="">All Subjects</option>
+              {disciplines.map((d) => (
+                <option key={d.id} value={d.id}>{d.code} - {d.name}</option>
+              ))}
+            </select>
+          </Field>
+          <button
+            type="button"
+            title="Search grades"
+            aria-label="Search grades"
+            style={{
+              ...s.submitBtn(false),
+              width: 42,
+              height: 38,
+              padding: 0,
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: 0,
+            }}
+            onClick={loadGrades}
           >
-            <option value="">All Periods</option>
-            <option value="prelim">Prelim</option>
-            <option value="midterm">Midterm</option>
-            <option value="finals">Finals</option>
-          </select>
-          <select
-            style={s.input}
-            value={filters.discipline}
-            onChange={(e) => setFilters({ ...filters, discipline: e.target.value })}
-          >
-            <option value="">All Subjects</option>
-            {disciplines.map((d) => (
-              <option key={d.id} value={d.id}>{d.code} - {d.name}</option>
-            ))}
-          </select>
-        </div>
-        <div style={{ marginTop: 10 }}>
-          <button style={{ ...s.submitBtn(false), width: '100%' }} onClick={loadGrades}>Search</button>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="17"
+              height="17"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <circle cx="11" cy="11" r="7" />
+              <path d="m20 20-4-4" />
+            </svg>
+          </button>
         </div>
       </div>
 
       {/* Removed debug text per user request */}
 
       {loading ? (
-        <div style={s.comingSoon}>Loading grades...</div>
+        <div style={{ ...s.comingSoon, minHeight: 160 }}>Loading grades...</div>
       ) : grades.length === 0 ? (
-        <div style={s.comingSoon}>No grade records found.</div>
+        <div style={{ ...s.comingSoon, minHeight: 160 }}>
+          <div style={{ fontSize: 30, opacity: 0.25 }}>*</div>
+          <div style={{ fontSize: 13, color: c.muted }}>No grade records found.</div>
+        </div>
       ) : (
         <div style={{ ...s.panel, padding: 0, overflow: 'hidden' }}>
           <SectionHeader title="Grade Entries" />
