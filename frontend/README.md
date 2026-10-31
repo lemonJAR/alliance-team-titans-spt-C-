@@ -24,6 +24,22 @@ accounts:
 Demo accounts are disabled in production builds and must not be used as real
 credentials.
 
+## Faculty CSV import
+
+Administrators can bulk-create faculty accounts from the **Add Teacher** page.
+Upload a prepared CSV containing these columns:
+
+```csv
+first_name,last_name,middle_name,email,employee_id,department_code
+Juan,Dela Cruz,,juan.delacruz@example.com,EMP-001,SCS
+```
+
+The browser validates required fields, email format, duplicate rows, and
+department codes before showing a preview. Only valid rows are submitted after
+the administrator confirms the import. Temporary credentials are generated
+and emailed by the API for each created account; discipline assignments remain
+a separate step.
+
 ## Validation
 
 ```powershell
