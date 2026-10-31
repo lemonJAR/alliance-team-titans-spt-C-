@@ -9,7 +9,7 @@
 - Update your name fields and change password in **Profile / Account**.
 
 ### Enrollment
-- Use **Enrollment** to request disciplines.
+- Use **Enrollment** to request subjects.
 - After approval, select the schedule for enrolled subjects.
 
 ### Grades
@@ -33,7 +33,7 @@
 
 ## 4) Admin Guide
 ### School Setup
-- Manage colleges, programs, disciplines, and semester load.
+- Manage colleges, programs, subjects, and semester load.
 
 ### Subject Offerings
 - Create offerings and assign teachers.

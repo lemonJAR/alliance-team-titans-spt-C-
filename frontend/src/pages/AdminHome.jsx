@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import {
-  addCollege, addDegreeProgram, addDiscipline,
-  fetchCollege, fetchProgram, fetchDiscipline,
+  addCollege, addDegreeProgram, addSubject,
+  fetchCollege, fetchProgram, fetchSubjects,
   adminCreateTeacher, fetchTeachers,
   adminCreateStudent, fetchStudents,
   fetchSemesterLoads, addSemesterLoad,
@@ -253,7 +253,7 @@ function SchoolTab() {
 
   const [col,     setCol]     = useState({ name: '', code: '' });
   const [prog,    setProg]    = useState({ college: '', name: '', code: '' });
-  const [disc,    setDisc]    = useState({ program: '', name: '', code: '', year_level: '1', semester: '1', units: '3', prerequisites: [] });
+  const [subject, setSubject] = useState({ program: '', name: '', code: '', year_level: '1', semester: '1', units: '3', prerequisites: [] });
   const [semload, setSemload] = useState({ program: '', year_level: '1', semester: '1', max_units: '27' });
   const [loadFilter, setLoadFilter] = useState('');
   const [setupSection, setSetupSection] = useState('overview');
@@ -263,11 +263,11 @@ useEffect(() => {
 }, []);
 
   useEffect(() => {
-    if (!disc.program) { setPrereqOptions([]); return; }
-    fetchDiscipline(disc.program)
+    if (!subject.program) { setPrereqOptions([]); return; }
+    fetchSubjects(subject.program)
       .then(({ data }) => setPrereqOptions(data))
       .catch(console.error);
-  }, [disc.program]);
+  }, [subject.program]);
 
   async function loadColleges() {
     try { const { data } = await fetchCollege(); setColleges(data); } catch (e) { console.error(e); }
@@ -297,21 +297,21 @@ useEffect(() => {
     } catch (err) { alert('Error: ' + (err.response?.data ? JSON.stringify(err.response.data) : err.message)); }
   }
 
-  async function handleAddDiscipline(e) {
+  async function handleAddSubject(e) {
     e.preventDefault();
     try {
-      await addDiscipline({
-        program:  parseInt(disc.program),
-        name:     disc.name,
-        code:     disc.code,
-        year_level:    parseInt(disc.year_level),
-        semester:      parseInt(disc.semester),
-        units:         parseInt(disc.units),
-        prerequisites: disc.prerequisites,
+      await addSubject({
+        program:  parseInt(subject.program),
+        name:     subject.name,
+        code:     subject.code,
+        year_level:    parseInt(subject.year_level),
+        semester:      parseInt(subject.semester),
+        units:         parseInt(subject.units),
+        prerequisites: subject.prerequisites,
       });
-      alert(`OK: Discipline "${disc.name}" added.`);
-      setDisc({ program: disc.program, name: '', code: '', year_level: '1', semester: '1', units: '3', prerequisites: [] });
-      fetchDiscipline(disc.program).then(({ data }) => setPrereqOptions(data)).catch(console.error);
+      alert(`OK: Subject "${subject.name}" added.`);
+      setSubject({ program: subject.program, name: '', code: '', year_level: '1', semester: '1', units: '3', prerequisites: [] });
+      fetchSubjects(subject.program).then(({ data }) => setPrereqOptions(data)).catch(console.error);
     } catch (err) { alert('Error: ' + (err.response?.data ? JSON.stringify(err.response.data) : err.message)); }
   }
 
@@ -354,7 +354,7 @@ useEffect(() => {
             { key: 'overview', label: 'Overview' },
             { key: 'colleges', label: 'Colleges' },
             { key: 'programs', label: 'Degree Programs' },
-            { key: 'disciplines', label: 'Disciplines' },
+            { key: 'subjects', label: 'Subjects' },
             { key: 'loads', label: 'Semester Loads' },
           ].map((tab) => (
             <button key={tab.key} type="button" onClick={() => setSetupSection(tab.key)} style={s.tabButton(setupSection === tab.key)}>
@@ -373,7 +373,7 @@ useEffect(() => {
               {[
                 { key: 'colleges', label: 'Colleges', count: colleges.length, description: 'Top-level academic units.' },
                 { key: 'programs', label: 'Degree Programs', count: programs.length, description: 'Programs belonging to a college.' },
-                { key: 'disciplines', label: 'Disciplines', count: '—', description: 'Subjects assigned to programs.' },
+                { key: 'subjects', label: 'Subjects', count: '—', description: 'Subjects assigned to programs.' },
                 { key: 'loads', label: 'Semester Loads', count: semLoads.length, description: 'Unit limits by program and term.' },
               ].map((item) => (
                 <button key={item.key} type="button" onClick={() => setSetupSection(item.key)} style={{
@@ -392,7 +392,7 @@ useEffect(() => {
           </div>
         )}
 
-        {['colleges', 'programs', 'disciplines'].includes(setupSection) && (
+        {['colleges', 'programs', 'subjects'].includes(setupSection) && (
       <div style={s.tabPanel}>
       <div style={s.panels}>
         {setupSection === 'colleges' && <div style={s.panel}>
@@ -436,29 +436,29 @@ useEffect(() => {
           </form>
         </div>}
 
-        {setupSection === 'disciplines' && <div style={s.panel}>
-          <PanelTitle>Add Discipline</PanelTitle>
+        {setupSection === 'subjects' && <div style={s.panel}>
+          <PanelTitle>Add Subject</PanelTitle>
           <p style={s.hint}>Set program, year, semester, units, and optional prerequisites.</p>
-          <form onSubmit={handleAddDiscipline} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <form onSubmit={handleAddSubject} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <Field label="Degree Program">
-              <select style={s.input} value={disc.program}
-                onChange={(e) => setDisc({ ...disc, program: e.target.value, prerequisites: [] })} required>
+              <select style={s.input} value={subject.program}
+                onChange={(e) => setSubject({ ...subject, program: e.target.value, prerequisites: [] })} required>
                 <option value="">-- Select Program --</option>
                 {programs.map((p) => <option key={p.id} value={p.id}>{p.name} ({p.code})</option>)}
               </select>
             </Field>
-            <Field label="Discipline Name">
+            <Field label="Subject Name">
               <input style={s.input} type="text" placeholder="e.g. Web Development"
-                value={disc.name} onChange={(e) => setDisc({ ...disc, name: e.target.value })} required />
+                value={subject.name} onChange={(e) => setSubject({ ...subject, name: e.target.value })} required />
             </Field>
             <Field label="Code">
               <input style={s.input} type="text" placeholder="e.g. CS101" maxLength={20}
-                value={disc.code} onChange={(e) => setDisc({ ...disc, code: e.target.value.toUpperCase() })} required />
+                value={subject.code} onChange={(e) => setSubject({ ...subject, code: e.target.value.toUpperCase() })} required />
             </Field>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
               <Field label="Year Level">
-                <select style={s.input} value={disc.year_level}
-                  onChange={(e) => setDisc({ ...disc, year_level: e.target.value })} required>
+                <select style={s.input} value={subject.year_level}
+                  onChange={(e) => setSubject({ ...subject, year_level: e.target.value })} required>
                   <option value="1">Year 1</option>
                   <option value="2">Year 2</option>
                   <option value="3">Year 3</option>
@@ -466,31 +466,31 @@ useEffect(() => {
                 </select>
               </Field>
               <Field label="Semester">
-                <select style={s.input} value={disc.semester}
-                  onChange={(e) => setDisc({ ...disc, semester: e.target.value })} required>
+                <select style={s.input} value={subject.semester}
+                  onChange={(e) => setSubject({ ...subject, semester: e.target.value })} required>
                   <option value="1">1st Sem</option>
                   <option value="2">2nd Sem</option>
                 </select>
               </Field>
               <Field label="Units">
-                <select style={s.input} value={disc.units}
-                  onChange={(e) => setDisc({ ...disc, units: e.target.value })} required>
+                <select style={s.input} value={subject.units}
+                  onChange={(e) => setSubject({ ...subject, units: e.target.value })} required>
                   <option value="1">1 - Guidance/PE</option>
                   <option value="2">2 - Minor</option>
                   <option value="3">3 - Major</option>
                 </select>
               </Field>
             </div>
-            <Field label={`Prerequisites ${disc.prerequisites.length ? `(${disc.prerequisites.length} selected)` : '- optional'}`}>
+            <Field label={`Prerequisites ${subject.prerequisites.length ? `(${subject.prerequisites.length} selected)` : '- optional'}`}>
               <MultiSelect
                 options={prereqOptions}
-                selected={disc.prerequisites}
-                onChange={(val) => setDisc({ ...disc, prerequisites: val })}
-                placeholder={disc.program ? 'No existing disciplines yet - add some first.' : 'Select a program first.'}
+                selected={subject.prerequisites}
+                onChange={(val) => setSubject({ ...subject, prerequisites: val })}
+                placeholder={subject.program ? 'No existing subjects yet - add some first.' : 'Select a program first.'}
               />
             </Field>
-            <button type="submit" style={s.submitBtn(!disc.program || !disc.name)} disabled={!disc.program || !disc.name}>
-              Add Discipline
+            <button type="submit" style={s.submitBtn(!subject.program || !subject.name)} disabled={!subject.program || !subject.name}>
+              Add Subject
             </button>
           </form>
         </div>}
@@ -578,7 +578,7 @@ useEffect(() => {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <thead>
                   <tr style={{ background: 'var(--app-panel)' }}>
-                    {['Year', 'Semester', 'Units', 'Disciplines'].map((h) => (
+                    {['Year', 'Semester', 'Units', 'Subjects'].map((h) => (
                       <th key={h} style={{
                         padding: '8px 16px', textAlign: 'left', fontSize: 10, fontWeight: 600,
                         letterSpacing: '0.08em', textTransform: 'uppercase',
@@ -602,16 +602,16 @@ useEffect(() => {
                         </td>
                         <td style={{ padding: '10px 16px' }}>
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                            {sl.disciplines?.length > 0
-                              ? sl.disciplines.map(d => (
-                                  <span key={d.id} style={{
+                            {sl.subjects?.length > 0
+                              ? sl.subjects.map(subject => (
+                                  <span key={subject.id} style={{
                                     background: 'var(--app-panel)', border: '1px solid var(--app-border)',
                                     color: 'var(--app-muted)', borderRadius: 4, padding: '2px 8px', fontSize: 11,
                                   }}>
-                                    {d.code} - {d.name} <span style={{ color: 'var(--app-accent)' }}>({d.units}u)</span>
+                                    {subject.code} - {subject.name} <span style={{ color: 'var(--app-accent)' }}>({subject.units}u)</span>
                                   </span>
                                 ))
-                              : <span style={{ color: 'var(--app-muted)', fontSize: 12 }}>No disciplines yet</span>
+                              : <span style={{ color: 'var(--app-muted)', fontSize: 12 }}>No subjects yet</span>
                             }
                           </div>
                         </td>
@@ -679,12 +679,12 @@ function parseCsv(text) {
 function TeacherTab() {
   const emptyForm = {
     first_name: '', last_name: '', middle_name: '',
-    email: '', employee_id: '', department: '', disciplines: [],
+    email: '', employee_id: '', department: '', subjects: [],
   };
 
   const [form, setForm]               = useState(emptyForm);
   const [colleges, setColleges]       = useState([]);
-  const [disciplines, setDisciplines] = useState([]);
+  const [subjects, setSubjects] = useState([]);
   const [teachers, setTeachers]       = useState([]);
   const [loading, setLoading]         = useState(false);
   const [filterDept, setFilterDept]   = useState('');
@@ -702,15 +702,15 @@ function TeacherTab() {
   }, []);
 
   useEffect(() => {
-    if (!form.department) { setDisciplines([]); set('disciplines', []); return; }
+    if (!form.department) { setSubjects([]); set('subjects', []); return; }
     const load = async () => {
       try {
         const { data: progs } = await fetchProgram(form.department);
-        const results = await Promise.all(progs.map((p) => fetchDiscipline(p.id)));
-        setDisciplines(results.flatMap(({ data }) => data));
+        const results = await Promise.all(progs.map((p) => fetchSubjects(p.id)));
+        setSubjects(results.flatMap(({ data }) => data));
       } catch (e) { console.error(e); }
     };
-    set('disciplines', []);
+    set('subjects', []);
     load();
   }, [form.department]);
 
@@ -725,10 +725,10 @@ function TeacherTab() {
       await adminCreateTeacher({
         first_name: form.first_name, last_name: form.last_name, middle_name: form.middle_name,
         email: form.email, employee_id: form.employee_id,
-        department: parseInt(form.department), disciplines: form.disciplines,
+        department: parseInt(form.department), subjects: form.subjects,
       });
       alert(`OK: Teacher account created. Credentials sent to ${form.email}.`);
-      setForm(emptyForm); setDisciplines([]); loadTeachers();
+      setForm(emptyForm); setSubjects([]); loadTeachers();
     } catch (err) {
       alert('Error: ' + (err.response?.data ? JSON.stringify(err.response.data) : err.message));
     } finally { setLoading(false); }
@@ -796,7 +796,7 @@ function TeacherTab() {
           email: row.email,
           employee_id: row.employee_id,
           department: row.department.id,
-          disciplines: [],
+          subjects: [],
         });
         created += 1;
       } catch (error) {
@@ -860,7 +860,7 @@ function TeacherTab() {
           <div style={{ ...s.tabPanel, paddingBottom: 8, borderBottom: '1px solid var(--app-border)' }}>
             <div style={{ ...s.panel, maxWidth: 720, margin: '0 auto' }}>
               <PanelTitle>Import Faculty CSV</PanelTitle>
-              <p style={s.hint}>Upload a prepared CSV with the required faculty fields. Discipline assignments can be added afterward.</p>
+              <p style={s.hint}>Upload a prepared CSV with the required faculty fields. Subject assignments can be added afterward.</p>
               {csvError && <div style={{ color: c.danger, fontSize: 12, marginTop: 10 }}>{csvError}</div>}
               {csvRows.length > 0 && (
                 <div style={{ marginTop: 12 }}>
@@ -919,11 +919,11 @@ function TeacherTab() {
                 {colleges.map((c) => <option key={c.id} value={c.id}>{c.name} ({c.code})</option>)}
               </select>
             </Field>
-            <Field label={`Disciplines ${form.disciplines.length ? `(${form.disciplines.length} selected)` : ''}`}>
+            <Field label={`Subjects ${form.subjects.length ? `(${form.subjects.length} selected)` : ''}`}>
               <MultiSelect
-                options={disciplines} selected={form.disciplines}
-                onChange={(val) => set('disciplines', val)}
-                placeholder={form.department ? 'No disciplines found.' : 'Select a department first.'}
+                options={subjects} selected={form.subjects}
+                onChange={(val) => set('subjects', val)}
+                placeholder={form.department ? 'No subjects found.' : 'Select a department first.'}
               />
             </Field>
             <button type="submit" style={s.submitBtn(!form.department || loading)} disabled={!form.department || loading}>
@@ -968,7 +968,7 @@ function TeacherTab() {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <thead>
                   <tr style={{ background: 'var(--app-panel)' }}>
-                    {['Name', 'Employee ID', 'Email', 'Disciplines'].map((h, index) => (
+                    {['Name', 'Employee ID', 'Email', 'Subjects'].map((h, index) => (
                       <th key={h} style={{
                         padding: '8px 16px', textAlign: index === 0 ? 'left' : 'center', fontSize: 10, fontWeight: 600,
                         letterSpacing: '0.08em', textTransform: 'uppercase',
@@ -985,12 +985,12 @@ function TeacherTab() {
                       <td style={{ padding: '10px 16px', color: c.muted, fontSize: 12, textAlign: 'center' }}>{t.email}</td>
                       <td style={{ padding: '10px 16px', textAlign: 'center' }}>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                          {t.disciplines?.length > 0
-                            ? t.disciplines.map((d) => (
-                                <span key={d} style={{
+                          {t.subjects?.length > 0
+                            ? t.subjects.map((subject) => (
+                                <span key={subject} style={{
                                   background: c.accentBg, border: '1px solid var(--app-accent)',
                                   color: c.accent, borderRadius: 4, padding: '2px 7px', fontSize: 11,
-                                }}>{d}</span>
+                                }}>{subject}</span>
                               ))
                             : <span style={{ color: c.muted, fontSize: 12 }}>-</span>}
                         </div>
@@ -1035,7 +1035,7 @@ function TeacherTab() {
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                     <thead>
                       <tr style={{ background: 'var(--app-panel)' }}>
-                        {['Name', 'Employee ID', 'Email', 'Disciplines'].map((h, index) => (
+                        {['Name', 'Employee ID', 'Email', 'Subjects'].map((h, index) => (
                           <th key={h} style={{ padding: '8px 16px', textAlign: index === 0 ? 'left' : 'center', fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: c.muted, borderBottom: '1px solid var(--app-border)' }}>{h}</th>
                         ))}
                       </tr>
@@ -1048,8 +1048,8 @@ function TeacherTab() {
                           <td style={{ padding: '10px 16px', color: c.muted, fontSize: 12, textAlign: 'center' }}>{t.email}</td>
                           <td style={{ padding: '10px 16px', textAlign: 'center' }}>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                              {t.disciplines?.length > 0
-                                ? t.disciplines.map((d) => <span key={d} style={{ background: c.accentBg, border: '1px solid var(--app-accent)', color: c.accent, borderRadius: 4, padding: '2px 7px', fontSize: 11 }}>{d}</span>)
+                              {t.subjects?.length > 0
+                                ? t.subjects.map((subject) => <span key={subject} style={{ background: c.accentBg, border: '1px solid var(--app-accent)', color: c.accent, borderRadius: 4, padding: '2px 7px', fontSize: 11 }}>{subject}</span>)
                                 : <span style={{ color: c.muted, fontSize: 12 }}>-</span>}
                             </div>
                           </td>
@@ -1633,11 +1633,11 @@ function ApprovalQueue() {
   const grouped = queue.reduce((acc, enr) => {
     const yl   = enr.year_level ?? '?';
     const prog = enr.program    ?? 'Unknown';
-    const disc = `${enr.discipline_code} - ${enr.discipline_name}`;
+    const subjectLabel = `${enr.subject_code} - ${enr.subject_name}`;
     if (!acc[yl])             acc[yl]             = {};
     if (!acc[yl][prog])       acc[yl][prog]       = {};
-    if (!acc[yl][prog][disc]) acc[yl][prog][disc] = [];
-    acc[yl][prog][disc].push(enr);
+    if (!acc[yl][prog][subjectLabel]) acc[yl][prog][subjectLabel] = [];
+    acc[yl][prog][subjectLabel].push(enr);
     return acc;
   }, {});
 
@@ -1779,10 +1779,10 @@ function ApprovalQueue() {
           </div>
 
           {/* Programs */}
-          {Object.entries(grouped[yl]).map(([prog, disciplines]) => {
+          {Object.entries(grouped[yl]).map(([prog, subjects]) => {
             const groupKey   = `Y${yl}_${prog}`;
             const isExpanded = expandedKey === groupKey;
-            const allIds     = Object.values(disciplines).flat().map((e) => e.id);
+            const allIds     = Object.values(subjects).flat().map((e) => e.id);
             const selCount   = allIds.filter((id) => selected.has(id)).length;
             const totalCount = allIds.length;
 
@@ -1807,8 +1807,8 @@ function ApprovalQueue() {
                   }}>{prog}</span>
 
                   <span style={{ fontSize: 13, color: c.muted, flex: 1 }}>
-                    {Object.keys(disciplines).length}{' '}
-                    {Object.keys(disciplines).length === 1 ? 'discipline' : 'disciplines'}
+                    {Object.keys(subjects).length}{' '}
+                    {Object.keys(subjects).length === 1 ? 'subject' : 'subjects'}
                     <span style={{ color: c.muted, marginLeft: 6, fontSize: 12 }}>
                       - {totalCount} {totalCount === 1 ? 'request' : 'requests'}
                     </span>
@@ -1836,24 +1836,24 @@ function ApprovalQueue() {
                   </span>
                 </div>
 
-                {/* Expanded disciplines */}
+                {/* Expanded subjects */}
                 {isExpanded && (
                   <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    {Object.entries(disciplines).map(([discLabel, enrollments], di) => {
-                      const discIds    = enrollments.map((e) => e.id);
-                      const allDiscSel = discIds.every((id) => selected.has(id));
+                    {Object.entries(subjects).map(([subjectLabel, enrollments], di) => {
+                      const subjectIds = enrollments.map((e) => e.id);
+                      const allSubjectsSelected = subjectIds.every((id) => selected.has(id));
 
                       return (
-                        <div key={discLabel} style={{
+                        <div key={subjectLabel} style={{
                           borderTop: di > 0 ? '1px solid var(--app-border)' : 'none',
                         }}>
-                          {/* Discipline sub-header */}
+                          {/* Subject sub-header */}
                           <div style={{
                             padding: '9px 20px', background: 'var(--app-panel)',
                             display: 'flex', alignItems: 'center', gap: 10,
                           }}>
                             <span style={{ fontSize: 12, fontWeight: 600, color: c.text, flex: 1 }}>
-                              {discLabel}
+                              {subjectLabel}
                             </span>
                             <span style={{
                               fontSize: 11, color: c.muted,
@@ -1865,20 +1865,20 @@ function ApprovalQueue() {
                             <span style={{ fontSize: 11, color: c.muted }}>
                               {enrollments.length} {enrollments.length === 1 ? 'student' : 'students'}
                             </span>
-                            {/* Select-all for discipline - PENDING only */}
+                            {/* Select-all for subject - PENDING only */}
                             {isPending && (
                               <div
-                                onClick={() => toggleGroup(discIds)}
+                                onClick={() => toggleGroup(subjectIds)}
                                 style={{
                                   fontSize: 10,
-                                  color:      allDiscSel ? c.accent : c.muted,
-                                  border:     `1px solid ${allDiscSel ? 'var(--app-accent)' : 'var(--app-border)'}`,
-                                  background: allDiscSel ? c.accentBg : 'transparent',
+                                  color:      allSubjectsSelected ? c.accent : c.muted,
+                                  border:     `1px solid ${allSubjectsSelected ? 'var(--app-accent)' : 'var(--app-border)'}`,
+                                  background: allSubjectsSelected ? c.accentBg : 'transparent',
                                   borderRadius: 4, padding: '2px 8px',
                                   cursor: 'pointer', flexShrink: 0,
                                 }}
                               >
-                                {allDiscSel ? 'Selected' : 'Select all'}
+                                {allSubjectsSelected ? 'Selected' : 'Select all'}
                               </div>
                             )}
                           </div>
@@ -1970,9 +1970,9 @@ function OfferingsTab() {
   const [selYearLevel, setSelYearLevel] = useState('');
   const [selSemester,  setSelSemester]  = useState('');
 
-  const [disciplines, setDisciplines] = useState([]);
+  const [subjects, setSubjects] = useState([]);
   const [offerings,   setOfferings]   = useState([]);
-  const [expandedDisc, setExpandedDisc] = useState(null);
+  const [expandedSubject, setExpandedSubject] = useState(null);
   const [activeOfferingTab, setActiveOfferingTab] = useState('offerings');
   const [forms,       setForms]       = useState({});
   const [submitting,  setSubmitting]  = useState({});
@@ -1996,17 +1996,17 @@ function OfferingsTab() {
 
   useEffect(() => {
     if (!selProgram || !selYearLevel || !selSemester) {
-      setDisciplines([]);
+      setSubjects([]);
       setOfferings([]);
       return;
     }
-    fetchDiscipline(selProgram).then(({ data }) => {
+    fetchSubjects(selProgram).then(({ data }) => {
       const filtered = data.filter(
         (d) =>
           String(d.year_level) === selYearLevel &&
           String(d.semester)   === selSemester,
       );
-      setDisciplines(filtered);
+      setSubjects(filtered);
       setForms((prev) => {
         const next = { ...prev };
         filtered.forEach((d) => {
@@ -2030,32 +2030,32 @@ function OfferingsTab() {
     }).then(({ data }) => setOfferings(data)).catch(console.error);
   }, [selTerm, selProgram, selYearLevel, selSemester]);
 
-  const offeringsForDisc = (discId) =>
-    offerings.filter((o) => o.discipline === discId);
+  const offeringsForSubject = (subjectId) =>
+    offerings.filter((o) => o.subject === subjectId);
 
-  const setForm = (discId, field, value) =>
+  const setForm = (subjectId, field, value) =>
     setForms((prev) => ({
       ...prev,
-      [discId]: { ...prev[discId], [field]: value },
+      [subjectId]: { ...prev[subjectId], [field]: value },
     }));
 
-  async function handleAddOffering(e, discId) {
+  async function handleAddOffering(e, subjectId) {
     e.preventDefault();
-    const form = forms[discId];
+    const form = forms[subjectId];
     if (!selTerm) { alert('Select a term first.'); return; }
 
-    setSubmitting((prev) => ({ ...prev, [discId]: true }));
+    setSubmitting((prev) => ({ ...prev, [subjectId]: true }));
     try {
       await createOffering({
         term:       parseInt(selTerm),
-        discipline: discId,
+        subject: subjectId,
         teacher:    form.teacher ? parseInt(form.teacher) : null,
         schedule:   form.schedule,
         room:       form.room,
         max_slots:  parseInt(form.max_slots),
       });
-      setForms((prev) => ({ ...prev, [discId]: emptyOfferingForm() }));
-      setExpandedDisc(null);
+      setForms((prev) => ({ ...prev, [subjectId]: emptyOfferingForm() }));
+      setExpandedSubject(null);
       const { data } = await fetchOfferings({
         term: selTerm, program: selProgram,
         year_level: selYearLevel, semester: selSemester,
@@ -2064,7 +2064,7 @@ function OfferingsTab() {
     } catch (err) {
       alert('Error: ' + (err.response?.data ? JSON.stringify(err.response.data) : err.message));
     } finally {
-      setSubmitting((prev) => ({ ...prev, [discId]: false }));
+      setSubmitting((prev) => ({ ...prev, [subjectId]: false }));
     }
   }
 
@@ -2082,7 +2082,7 @@ function OfferingsTab() {
       <div>
         <div style={s.pageTitle}>Subject Offerings</div>
         <div style={s.pageSub}>
-          Set the academic context, then manage offerings by discipline.
+          Set the academic context, then manage offerings by subject.
         </div>
       </div>
 
@@ -2132,7 +2132,7 @@ function OfferingsTab() {
         <div style={{ minWidth: 200, flex: 1 }}>
           <label style={s.label}>Degree Program</label>
           <select style={s.input} value={selProgram}
-            onChange={(e) => { setSelProgram(e.target.value); setSelYearLevel(''); setSelSemester(''); setExpandedDisc(null); }}>
+            onChange={(e) => { setSelProgram(e.target.value); setSelYearLevel(''); setSelSemester(''); setExpandedSubject(null); }}>
             <option value="">-- Select Program --</option>
             {programs.map((p) => (
               <option key={p.id} value={p.id}>{p.name} ({p.code})</option>
@@ -2143,7 +2143,7 @@ function OfferingsTab() {
         <div style={{ minWidth: 120 }}>
           <label style={s.label}>Year Level</label>
           <select style={s.input} value={selYearLevel}
-            onChange={(e) => { setSelYearLevel(e.target.value); setExpandedDisc(null); }}
+            onChange={(e) => { setSelYearLevel(e.target.value); setExpandedSubject(null); }}
             disabled={!selProgram}>
             <option value="">--</option>
             <option value="1">Year 1</option>
@@ -2156,7 +2156,7 @@ function OfferingsTab() {
         <div style={{ minWidth: 120 }}>
           <label style={s.label}>Semester</label>
           <select style={s.input} value={selSemester}
-            onChange={(e) => { setSelSemester(e.target.value); setExpandedDisc(null); }}
+            onChange={(e) => { setSelSemester(e.target.value); setExpandedSubject(null); }}
             disabled={!selYearLevel}>
             <option value="">--</option>
             <option value="1">1st Sem</option>
@@ -2174,26 +2174,26 @@ function OfferingsTab() {
         </div>
       )}
 
-      {filtersReady && disciplines.length === 0 && (
+      {filtersReady && subjects.length === 0 && (
         <div style={{ ...s.comingSoon, minHeight: 120 }}>
           <div style={{ fontSize: 36, opacity: 0.25 }}>*</div>
           <div style={{ fontSize: 13, color: 'var(--app-muted)' }}>
-            No disciplines found for this program / year / semester combo.
+            No subjects found for this program / year / semester combination.
           </div>
         </div>
       )}
 
-      {filtersReady && disciplines.length > 0 && (
+      {filtersReady && subjects.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {disciplines.map((disc) => {
-            const discOfferings = offeringsForDisc(disc.id);
-            const isExpanded    = expandedDisc === disc.id;
-            const form          = forms[disc.id] || emptyOfferingForm();
-            const isSubmitting  = submitting[disc.id] || false;
+          {subjects.map((subject) => {
+            const subjectOfferings = offeringsForSubject(subject.id);
+            const isExpanded    = expandedSubject === subject.id;
+            const form          = forms[subject.id] || emptyOfferingForm();
+            const isSubmitting  = submitting[subject.id] || false;
             const canSubmit     = !!selTerm && !!form.schedule && !isSubmitting;
 
             return (
-              <div key={disc.id} style={{ ...s.panel, gap: 0, padding: 0, overflow: 'visible' }}>
+              <div key={subject.id} style={{ ...s.panel, gap: 0, padding: 0, overflow: 'visible' }}>
                 <div style={{
                   display: 'flex', alignItems: 'center', gap: 12,
                   padding: '14px 20px',
@@ -2201,29 +2201,29 @@ function OfferingsTab() {
                   borderBottom: isExpanded ? '1px solid var(--app-border)' : 'none',
                   cursor: 'pointer', transition: 'background 0.15s',
                 }}
-                  onClick={() => setExpandedDisc(isExpanded ? null : disc.id)}
+                  onClick={() => setExpandedSubject(isExpanded ? null : subject.id)}
                 >
                   <span style={{
                     background: 'var(--app-panel)', border: '1px solid var(--app-border)',
                     color: 'var(--app-muted)', borderRadius: 5,
                     padding: '3px 10px', fontSize: 11, fontFamily: 'monospace', flexShrink: 0,
-                  }}>{disc.code}</span>
+                  }}>{subject.code}</span>
 
                   <span style={{ fontWeight: 500, fontSize: 14, color: 'var(--app-text)', flex: 1 }}>
-                    {disc.name}
+                    {subject.name}
                   </span>
 
                   <span style={{ fontSize: 12, color: 'var(--app-muted)', flexShrink: 0 }}>
-                    {disc.units} {disc.units === 1 ? 'unit' : 'units'}
+                    {subject.units} {subject.units === 1 ? 'unit' : 'units'}
                   </span>
 
                   <span style={{
-                    background: discOfferings.length > 0 ? 'var(--app-accent-bg)' : 'var(--app-panel)',
-                    border: `1px solid ${discOfferings.length > 0 ? 'var(--app-accent)' : 'var(--app-border)'}`,
-                    color: discOfferings.length > 0 ? 'var(--app-accent)' : 'var(--app-muted)',
+                    background: subjectOfferings.length > 0 ? 'var(--app-accent-bg)' : 'var(--app-panel)',
+                    border: `1px solid ${subjectOfferings.length > 0 ? 'var(--app-accent)' : 'var(--app-border)'}`,
+                    color: subjectOfferings.length > 0 ? 'var(--app-accent)' : 'var(--app-muted)',
                     borderRadius: 20, padding: '2px 10px', fontSize: 11, fontWeight: 600, flexShrink: 0,
                   }}>
-                    {discOfferings.length} {discOfferings.length === 1 ? 'offering' : 'offerings'}
+                    {subjectOfferings.length} {subjectOfferings.length === 1 ? 'offering' : 'offerings'}
                   </span>
 
                   <span style={{ color: 'var(--app-muted)', fontSize: 12, flexShrink: 0 }}>
@@ -2233,7 +2233,7 @@ function OfferingsTab() {
 
                 {isExpanded && (
                   <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-                    {discOfferings.length > 0 && (
+                    {subjectOfferings.length > 0 && (
                       <div style={{ overflowX: 'auto' }}>
                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                           <thead>
@@ -2248,7 +2248,7 @@ function OfferingsTab() {
                             </tr>
                           </thead>
                           <tbody>
-                            {discOfferings.map((o, i) => (
+                            {subjectOfferings.map((o, i) => (
                               <tr key={o.id} style={{
                                 background: i % 2 === 0 ? 'transparent' : 'rgba(148, 163, 184, 0.08)',
                                 borderBottom: '1px solid var(--app-border)',
@@ -2300,13 +2300,13 @@ function OfferingsTab() {
                       </div>
 
                       <form
-                        onSubmit={(e) => handleAddOffering(e, disc.id)}
+                        onSubmit={(e) => handleAddOffering(e, subject.id)}
                         style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-end' }}
                       >
                         <div style={{ minWidth: 180, flex: 1 }}>
                           <label style={s.label}>Existing Teacher</label>
                           <select style={s.input} value={form.teacher}
-                            onChange={(e) => setForm(disc.id, 'teacher', e.target.value)}>
+                            onChange={(e) => setForm(subject.id, 'teacher', e.target.value)}>
                             <option value="">-- Select an existing teacher --</option>
                             {teachers.map((t) => (
                               <option key={t.id} value={t.id}>{t.full_name}</option>
@@ -2320,7 +2320,7 @@ function OfferingsTab() {
                             style={s.input} type="text"
                             placeholder="e.g. MWF 7:30-9:00 AM"
                             value={form.schedule}
-                            onChange={(e) => setForm(disc.id, 'schedule', e.target.value)}
+                            onChange={(e) => setForm(subject.id, 'schedule', e.target.value)}
                             required
                           />
                         </div>
@@ -2331,14 +2331,14 @@ function OfferingsTab() {
                             style={s.input} type="text"
                             placeholder="e.g. SL-201"
                             value={form.room}
-                            onChange={(e) => setForm(disc.id, 'room', e.target.value)}
+                            onChange={(e) => setForm(subject.id, 'room', e.target.value)}
                           />
                         </div>
 
                         <div style={{ minWidth: 90 }}>
                           <label style={s.label}>Max Slots</label>
                           <select style={s.input} value={form.max_slots}
-                            onChange={(e) => setForm(disc.id, 'max_slots', e.target.value)}>
+                            onChange={(e) => setForm(subject.id, 'max_slots', e.target.value)}>
                             {[20, 25, 30, 35, 40, 45, 50].map((n) => (
                               <option key={n} value={n}>{n}</option>
                             ))}
@@ -2758,8 +2758,8 @@ function UserManagementTab() {
 
 
 function GradeManagementTab() {
-  const [filters, setFilters] = useState({ student: '', term: '', discipline: '', period: '' });
-  const [disciplines, setDisciplines] = useState([]);
+  const [filters, setFilters] = useState({ student: '', term: '', subject: '', period: '' });
+  const [subjects, setSubjects] = useState([]);
   const [termsList, setTermsList] = useState([]);
   const [grades, setGrades] = useState([]);
   const [lastParams, setLastParams] = useState(null);
@@ -2772,7 +2772,7 @@ function GradeManagementTab() {
   const [selectedProfileId, setSelectedProfileId] = useState(null);
 
   useEffect(() => {
-    fetchDiscipline().then(({ data }) => setDisciplines(data || [])).catch(console.error);
+    fetchSubjects().then(({ data }) => setSubjects(data || [])).catch(console.error);
     fetchStudents().then(({ data }) => setStudentsList(data || [])).catch(console.error);
     fetchTerms().then(({ data }) => setTermsList(data || [])).catch(console.error);
   }, []);
@@ -2791,7 +2791,7 @@ function GradeManagementTab() {
         }
       }
 
-      // Normalize term and discipline to numeric IDs when possible
+      // Normalize term and subject to numeric IDs when possible.
       let termParam = undefined;
       if (filters.term) {
         const n = Number(filters.term);
@@ -2805,7 +2805,7 @@ function GradeManagementTab() {
       const paramsForRequest = {
         student: studentParam || undefined,
         term: termParam || undefined,
-        discipline: filters.discipline ? parseInt(filters.discipline) : undefined,
+        subject: filters.subject ? parseInt(filters.subject) : undefined,
         period: filters.period || undefined,
       };
       console.log('loadGrades - params:', paramsForRequest);
@@ -2984,12 +2984,12 @@ function GradeManagementTab() {
           <Field label="Subject">
             <select
               style={s.input}
-              value={filters.discipline}
-              onChange={(e) => setFilters({ ...filters, discipline: e.target.value })}
+              value={filters.subject}
+              onChange={(e) => setFilters({ ...filters, subject: e.target.value })}
             >
               <option value="">All Subjects</option>
-              {disciplines.map((d) => (
-                <option key={d.id} value={d.id}>{d.code} - {d.name}</option>
+              {subjects.map((subject) => (
+                <option key={subject.id} value={subject.id}>{subject.code} - {subject.name}</option>
               ))}
             </select>
           </Field>
@@ -3052,7 +3052,7 @@ function GradeManagementTab() {
               {grades.map((row, idx) => (
                 <tr key={row.id} style={{ background: idx % 2 === 0 ? 'transparent' : c.rowAlt }}>
                   <td style={s.td}>{row.student_name} ({row.student_id_no})</td>
-                  <td style={s.td}>{row.discipline_code} - {row.discipline_name}</td>
+                  <td style={s.td}>{row.subject_code} - {row.subject_name}</td>
                   <td style={s.td}>{row.term_label || row.term || '--'}</td>
                   <td style={s.td}>
                     <input
@@ -3255,7 +3255,7 @@ function NotificationsTab() {
 
 
 function ReportsTab() {
-  const [filters, setFilters] = useState({ term: '', program: '', year_level: '', student: '', discipline: '' });
+  const [filters, setFilters] = useState({ term: '', program: '', year_level: '', student: '', subject: '' });
   const [report, setReport] = useState(null);
   const [programs, setPrograms] = useState([]);
 
@@ -3281,8 +3281,8 @@ function ReportsTab() {
       <tr>
         <td>${row.student_id_no || row.student || '--'}</td>
         <td>${row.student_name || '--'}</td>
-        <td>${row.discipline_code || '--'}</td>
-        <td>${row.discipline_name || '--'}</td>
+        <td>${row.subject_code || '--'}</td>
+        <td>${row.subject_name || '--'}</td>
         <td>${row.term_label || row.term || '--'}</td>
         <td>${row.prelim ?? '--'}</td>
         <td>${row.midterm ?? '--'}</td>
@@ -3379,8 +3379,8 @@ function ReportsTab() {
       body: (report.results || []).map((row) => [
         row.student_id_no || row.student || '--',
         row.student_name || '--',
-        row.discipline_code || '--',
-        row.discipline_name || '--',
+        row.subject_code || '--',
+        row.subject_name || '--',
         row.term_label || row.term || '--',
         row.prelim ?? '--',
         row.midterm ?? '--',
@@ -3401,44 +3401,61 @@ function ReportsTab() {
         <div style={s.pageSub}>Generate grade summary reports and export files.</div>
       </div>
 
-      <div style={{ ...s.panel, maxWidth: 520, flex: '0 0 auto' }}>
-        <PanelTitle>Filters</PanelTitle>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <input
-            style={s.input}
-            placeholder="Term ID"
-            value={filters.term}
-            onChange={(e) => setFilters({ ...filters, term: e.target.value })}
-          />
-          <select
-            style={s.input}
-            value={filters.program}
-            onChange={(e) => setFilters({ ...filters, program: e.target.value })}
-          >
-            <option value="">All Programs</option>
-            {programs.map((p) => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
-          </select>
-          <select
-            style={s.input}
-            value={filters.year_level}
-            onChange={(e) => setFilters({ ...filters, year_level: e.target.value })}
-          >
-            <option value="">All Years</option>
-            {[1, 2, 3, 4].map((y) => (
-              <option key={y} value={y}>Year {y}</option>
-            ))}
-          </select>
+      <div style={{ ...s.panel, width: '100%', flex: '0 0 auto', boxSizing: 'border-box' }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          gap: 16, flexWrap: 'wrap',
+        }}>
+          <PanelTitle>Report Filters</PanelTitle>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <button style={s.submitBtn(false)} onClick={loadReport}>Generate Report</button>
+            <button style={s.paginationButton(!report)} onClick={handleExportPdf} disabled={!report} title="Export PDF">Export PDF</button>
+            <button style={s.paginationButton(false)} onClick={handleExportCsv} title="Export CSV">Export CSV</button>
+            <button style={s.paginationButton(false)} onClick={handleExportExcel} title="Export Excel">Export Excel</button>
+            <button style={s.paginationButton(!report)} onClick={handlePrint} disabled={!report} title="Print report">Print</button>
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button style={s.submitBtn(false)} onClick={loadReport}>Generate</button>
-          <button style={s.submitBtn(!report)} onClick={handleExportPdf} disabled={!report}>Export PDF</button>
-          <button style={s.submitBtn(false)} onClick={handleExportCsv}>Export CSV</button>
-          <button style={s.submitBtn(false)} onClick={handleExportExcel}>Export Excel</button>
-          <button style={s.submitBtn(false)} onClick={handlePrint} disabled={!report}>Print Report</button>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'minmax(180px, 1fr) minmax(260px, 2fr) minmax(150px, 1fr)',
+          gap: 12,
+          alignItems: 'end',
+          marginTop: 16,
+        }}>
+          <Field label="Academic Term">
+            <input
+              style={s.input}
+              placeholder="Term ID"
+              value={filters.term}
+              onChange={(e) => setFilters({ ...filters, term: e.target.value })}
+            />
+          </Field>
+          <Field label="Degree Program">
+            <select
+              style={s.input}
+              value={filters.program}
+              onChange={(e) => setFilters({ ...filters, program: e.target.value })}
+            >
+              <option value="">All Programs</option>
+              {programs.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Year Level">
+            <select
+              style={s.input}
+              value={filters.year_level}
+              onChange={(e) => setFilters({ ...filters, year_level: e.target.value })}
+            >
+              <option value="">All Years</option>
+              {[1, 2, 3, 4].map((y) => (
+                <option key={y} value={y}>Year {y}</option>
+              ))}
+            </select>
+          </Field>
         </div>
-        <div style={{ marginTop: 8 }}>
+        <div style={{ paddingTop: 4, borderTop: '1px solid var(--app-border)' }}>
           <details>
             <summary style={{
               cursor: 'pointer',
@@ -3449,26 +3466,30 @@ function ReportsTab() {
               color: 'var(--app-muted)',
               listStyle: 'none',
               outline: 'none',
-              display: 'inline-flex',
+              display: 'flex',
               alignItems: 'center',
               gap: 6,
             }}>
               <span>More Filters</span>
               <span style={{ fontSize: 12, color: 'var(--app-border)' }}>▾</span>
             </summary>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
-              <input
-                style={s.input}
-                placeholder="Student ID"
-                value={filters.student}
-                onChange={(e) => setFilters({ ...filters, student: e.target.value })}
-              />
-              <input
-                style={s.input}
-                placeholder="Discipline ID"
-                value={filters.discipline}
-                onChange={(e) => setFilters({ ...filters, discipline: e.target.value })}
-              />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12, marginTop: 10 }}>
+              <Field label="Student ID">
+                <input
+                  style={s.input}
+                  placeholder="Optional student ID"
+                  value={filters.student}
+                  onChange={(e) => setFilters({ ...filters, student: e.target.value })}
+                />
+              </Field>
+              <Field label="Subject ID">
+                <input
+                  style={s.input}
+                  placeholder="Optional subject ID"
+                  value={filters.subject}
+                  onChange={(e) => setFilters({ ...filters, subject: e.target.value })}
+                />
+              </Field>
             </div>
           </details>
         </div>
@@ -3498,7 +3519,7 @@ function ReportsTab() {
                   {report.results.map((row) => (
                     <tr key={row.id}>
                       <td style={s.td}>{row.student_name} ({row.student_id_no})</td>
-                      <td style={s.td}>{row.discipline_code} - {row.discipline_name}</td>
+                      <td style={s.td}>{row.subject_code} - {row.subject_name}</td>
                       <td style={s.td}>{row.term_label || row.term || '--'}</td>
                       <td style={s.td}>{row.prelim ?? '--'}</td>
                       <td style={s.td}>{row.midterm ?? '--'}</td>

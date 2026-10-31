@@ -6,7 +6,7 @@ import {
   getStudentProfile,
   updateStudentProfile,
   getMyProspectus,
-  submitDisciplineRequest,
+  submitSubjectRequest,
   getApprovedForSchedule,
   selectSchedule,
   fetchTerms,
@@ -387,7 +387,7 @@ function ProfileTab() {
 
 function ProspectusTab() {
   const [rows,       setRows]      = useState([]);
-  const [selected,   setSelected]  = useState([]);
+  const [selectedSubjectIds, setSelectedSubjectIds] = useState([]);
   const [loading,    setLoading]   = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
@@ -406,30 +406,30 @@ function ProspectusTab() {
   const pendingCount  = rows.filter((r) => r.request_status === 'PENDING').length;
   const approvedCount = rows.filter((r) => r.request_status === 'APPROVED').length;
 
-  const selectedUnits = selected.reduce((sum, id) => {
-    const d = rows.find((r) => r.discipline_id === id);
+  const selectedUnits = selectedSubjectIds.reduce((sum, subjectId) => {
+    const d = rows.find((r) => r.subject_id === subjectId);
     return sum + (d?.units || 0);
   }, 0);
 
-  function toggleSelect(disciplineId) {
-    setSelected((prev) =>
-      prev.includes(disciplineId)
-        ? prev.filter((x) => x !== disciplineId)
-        : [...prev, disciplineId]
+  function toggleSelect(subjectId) {
+    setSelectedSubjectIds((prev) =>
+      prev.includes(subjectId)
+        ? prev.filter((id) => id !== subjectId)
+        : [...prev, subjectId]
     );
   }
 
   async function handleSubmitRequest() {
-    if (!selected.length) return;
+    if (!selectedSubjectIds.length) return;
     setSubmitting(true);
     try {
-      const { data } = await submitDisciplineRequest(selected);
+      const { data } = await submitSubjectRequest(selectedSubjectIds);
       const msg = [
         data.requested?.length ? `OK: Requested: ${data.requested.join(', ')}` : null,
         data.errors?.length    ? `Errors:\n${data.errors.join('\n')}`           : null,
       ].filter(Boolean).join('\n\n');
       alert(msg || 'OK: Done.');
-      setSelected([]);
+      setSelectedSubjectIds([]);
       await load();
     } catch (err) {
       alert('Error: ' + (err.response?.data ? JSON.stringify(err.response.data) : err.message));
@@ -460,17 +460,17 @@ function ProspectusTab() {
       {!loading && rows.length === 0 && (
         <div style={{ ...s.comingSoon, minHeight: 200 }}>
           <div style={{ fontSize: 38, opacity: 0.25 }}>*</div>
-          <div style={{ fontSize: 13, color: 'var(--app-muted)' }}>No active term or no disciplines found for your program.</div>
+          <div style={{ fontSize: 13, color: 'var(--app-muted)' }}>No active term or no subjects found for your program.</div>
         </div>
       )}
 
       {!loading && rows.length > 0 && (
         <div style={{ ...s.panel, gap: 0, padding: 0, overflow: 'hidden' }}>
           <SectionHeader
-            title="Disciplines"
+            title="Subjects"
             right={
-              selected.length > 0
-                ? `${selected.length} selected +${selectedUnits} units`
+              selectedSubjectIds.length > 0
+                ? `${selectedSubjectIds.length} selected +${selectedUnits} units`
                 : `${total} units total`
             }
           />
@@ -486,11 +486,11 @@ function ProspectusTab() {
             <tbody>
               {rows.map((d, i) => {
                 const alreadyReq = !!d.request_status;
-                const isSelected = selected.includes(d.discipline_id);
+                const isSelected = selectedSubjectIds.includes(d.subject_id);
                 return (
                   <tr
-                    key={d.discipline_id}
-                    onClick={() => !alreadyReq && toggleSelect(d.discipline_id)}
+                    key={d.subject_id}
+                    onClick={() => !alreadyReq && toggleSelect(d.subject_id)}
                     style={{
                       background: isSelected ? 'var(--app-accent-soft)' : i % 2 === 0 ? 'transparent' : 'rgba(148, 163, 184, 0.08)',
                       borderBottom: '1px solid var(--app-border)',
@@ -536,14 +536,14 @@ function ProspectusTab() {
             </tbody>
           </table>
 
-          {selected.length > 0 && (
+          {selectedSubjectIds.length > 0 && (
             <div style={{ padding: '14px 20px', borderTop: '1px solid var(--app-border)', display: 'flex', alignItems: 'center', gap: 12, background: 'var(--app-card)' }}>
               <span style={{ flex: 1, fontSize: 12, color: 'var(--app-muted)' }}>
-                {selected.length} subject{selected.length !== 1 ? 's' : ''} selected +
+                {selectedSubjectIds.length} subject{selectedSubjectIds.length !== 1 ? 's' : ''} selected +
                 <span style={{ color: 'var(--app-success)', fontWeight: 600 }}>+{selectedUnits} units</span>
               </span>
               <button
-                onClick={() => setSelected([])}
+                onClick={() => setSelectedSubjectIds([])}
                 style={{ background: 'none', border: '1px solid var(--app-border)', color: 'var(--app-muted)', borderRadius: 6, padding: '7px 14px', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}
               >
                 Clear
@@ -650,8 +650,8 @@ function EnrollmentTab() {
                       onClick={() => setExpandedEnr(isOpen ? null : item.enrollment_id)}
                       style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 20px', cursor: 'pointer', background: isOpen ? 'var(--app-accent-bg)' : 'transparent', transition: 'background 0.15s' }}
                     >
-                      <span style={{ background: 'var(--app-panel)', border: '1px solid var(--app-border)', color: 'var(--app-muted)', borderRadius: 5, padding: '3px 10px', fontSize: 11, fontFamily: 'monospace', flexShrink: 0 }}>{item.discipline_code}</span>
-                      <span style={{ flex: 1, fontWeight: 500, fontSize: 14, color: 'var(--app-text)' }}>{item.discipline_name}</span>
+                      <span style={{ background: 'var(--app-panel)', border: '1px solid var(--app-border)', color: 'var(--app-muted)', borderRadius: 5, padding: '3px 10px', fontSize: 11, fontFamily: 'monospace', flexShrink: 0 }}>{item.subject_code}</span>
+                      <span style={{ flex: 1, fontWeight: 500, fontSize: 14, color: 'var(--app-text)' }}>{item.subject_name}</span>
                       <span style={{ fontSize: 12, color: 'var(--app-muted)' }}>{item.units} units</span>
                       <StatusBadge status="APPROVED" />
                       <span style={{ color: 'var(--app-muted)', fontSize: 12 }}>{isOpen ? 'v' : '>'}</span>
@@ -823,7 +823,7 @@ function GradesTab() {
 
   prospectus.forEach((p) => {
     if (p.request_status === 'ENROLLED') {
-      enrolledMap.set(p.discipline_id, {
+      enrolledMap.set(p.subject_id, {
         ...p,
         source: 'prospectus',
       });
@@ -831,14 +831,14 @@ function GradesTab() {
   });
 
   grades.forEach((g) => {
-    if (enrolledMap.has(g.discipline_id)) {
-      enrolledMap.set(g.discipline_id, {
-        ...enrolledMap.get(g.discipline_id),
+    if (enrolledMap.has(g.subject_id)) {
+      enrolledMap.set(g.subject_id, {
+        ...enrolledMap.get(g.subject_id),
         ...g,
         source: 'merged',
       });
     } else {
-      enrolledMap.set(g.discipline_id, {
+      enrolledMap.set(g.subject_id, {
         ...g,
         source: 'grades-only',
       });
@@ -925,8 +925,8 @@ function GradesTab() {
         const finalsNum = finals == null ? null : Number(finals);
         const status = finalsNum == null ? 'IN PROGRESS' : finalsNum <= 3.0 ? 'PASSED' : 'FAILED';
         return [
-          d.discipline_code || d.code || '-',
-          d.discipline_name || d.name || '-',
+          d.subject_code || d.code || '-',
+          d.subject_name || d.name || '-',
           d.units ?? '-',
           d.prelim ?? '--',
           d.midterm ?? '--',
@@ -1100,7 +1100,7 @@ function GradesTab() {
 
                               <tbody>
                                 {visibleEnrolled.map((d) => (
-                                  <tr key={`${d.discipline_id ?? 'disc'}-${d.id ?? d.discipline_code ?? d.code ?? 'subject'}`}>
+                                  <tr key={`${d.subject_id ?? 'subject'}-${d.id ?? d.subject_code ?? d.code ?? 'subject'}`}>
                                     <td
                                       style={{
                                         ...s.td,
@@ -1108,11 +1108,11 @@ function GradesTab() {
                                         color: 'var(--app-success)',
                                       }}
                                     >
-                                      {d.discipline_code || d.code}
+                                      {d.subject_code || d.code}
                                     </td>
 
                                     <td style={{ ...s.td }}>
-                                      {d.discipline_name || d.name}
+                                      {d.subject_name || d.name}
                                     </td>
 
                                     <td style={{ ...s.td, textAlign: 'center' }}>
@@ -1327,10 +1327,10 @@ function GradesTab() {
                                       color: 'var(--app-success)',
                                     }}
                                   >
-                                    {g.discipline_code}
+                                    {g.subject_code}
                                   </td>
                                   <td style={{ ...s.td }}>
-                                    {g.discipline_name}
+                                    {g.subject_name}
                                   </td>
                                   <td style={{ ...s.td, textAlign: 'center' }}>
                                     {g.units}

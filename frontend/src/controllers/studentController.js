@@ -2,7 +2,7 @@ export {
   getStudentProfile,
   updateStudentProfile,
   getMyProspectus,
-  submitDisciplineRequest,
+  submitSubjectRequest,
   getApprovedForSchedule,
   selectSchedule,
   fetchTerms,

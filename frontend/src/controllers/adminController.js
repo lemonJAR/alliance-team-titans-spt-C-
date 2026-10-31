@@ -1,10 +1,10 @@
 export {
   addCollege,
   addDegreeProgram,
-  addDiscipline,
+  addSubject,
   fetchCollege,
   fetchProgram,
-  fetchDiscipline,
+  fetchSubjects,
   adminCreateTeacher,
   fetchTeachers,
   adminCreateStudent,

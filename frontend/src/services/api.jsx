@@ -5,6 +5,11 @@ const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || "/api",
 });
 
+const normalizeSubjectRecords = (data) => (data || []).map((record) => ({
+  ...record,
+  subjects: record.subjects ?? [],
+}));
+
 api.interceptors.request.use((config) => {
   const token = getSession()?.token;
   if (token) config.headers.Authorization = `Bearer ${token}`;
@@ -63,10 +68,13 @@ export const addCollege               = (payload)   => api.post('/system/college
 export const fetchCollege             = ()          => api.get('/system/colleges/');
 export const addDegreeProgram         = (payload)   => api.post('/system/programs/', payload);
 export const fetchProgram             = (collegeId) => api.get(`/system/programs/?college=${collegeId || ''}`);
-export const addDiscipline            = (payload)   => api.post('/system/disciplines/', payload);
-export const fetchDiscipline          = (programId) => api.get(`/system/disciplines/?program=${programId || ''}`);
-export const fetchDisciplineByCollege = (collegeId) => api.get(`/system/disciplines/?college=${collegeId || ''}`);
-export const fetchSemesterLoads       = (programId) => api.get(`/system/semester-loads/?program=${programId || ''}`);
+export const addSubject               = (payload)   => api.post('/system/subjects/', payload);
+export const fetchSubjects            = (programId) => api.get(`/system/subjects/?program=${programId || ''}`);
+export const fetchSubjectsByCollege   = (collegeId) => api.get(`/system/subjects/?college=${collegeId || ''}`);
+export const fetchSemesterLoads       = async (programId) => {
+  const response = await api.get(`/system/semester-loads/?program=${programId || ''}`);
+  return { ...response, data: normalizeSubjectRecords(response.data) };
+};
 export const addSemesterLoad          = (payload)   => api.post('/system/semester-loads/', payload);
 
 // ── SYSTEM: Academic Terms ────────────────────────────────────────────────────
@@ -84,7 +92,7 @@ export const fetchOfferingEnrollments = (offeringId) => api.get(`/system/teacher
 
 // ── SYSTEM: Enrollment (student) ─────────────────────────────────────────────
 export const getMyProspectus         = ()               => api.get('/system/enrollment/request/');
-export const submitDisciplineRequest = (discipline_ids) => api.post('/system/enrollment/request/', { discipline_ids });
+export const submitSubjectRequest = (subjectIds) => api.post('/system/enrollment/request/', { subject_ids: subjectIds });
 export const getApprovedForSchedule  = ()               => api.get('/system/enrollment/schedule/');
 export const selectSchedule          = (enrollment_id, offering_id) =>
   api.post('/system/enrollment/schedule/', { enrollment_id, offering_id });
@@ -110,9 +118,15 @@ export const exportGradeReportExcel = (params) => api.get('/system/reports/grade
 
 
 // ── SYSTEM: Faculty & Students (admin) ───────────────────────────────────────
-export const adminCreateTeacher       = (payload)     => api.post('/auth/admin/create-teacher/', payload);
-export const fetchTeachers            = ()            => api.get('/auth/admin/teachers/');
-export const updateTeacherDisciplines = (id, payload) => api.patch(`/auth/admin/teachers/${id}/`, payload);
+export const adminCreateTeacher       = (payload)     => {
+  const { subjects, ...rest } = payload;
+  return api.post('/auth/admin/create-teacher/', { ...rest, subjects });
+};
+export const fetchTeachers            = async () => {
+  const response = await api.get('/auth/admin/teachers/');
+  return { ...response, data: normalizeSubjectRecords(response.data) };
+};
+export const updateTeacherSubjects   = (id, payload) => api.patch(`/auth/admin/teachers/${id}/`, payload);
 export const adminCreateStudent       = (payload)     => api.post('/auth/admin/create-student/', payload);
 export const fetchStudents            = ()            => api.get('/auth/admin/students/');
 export const fetchAuditLogs           = (params)      => api.get('/auth/admin/audit-logs/', { params });

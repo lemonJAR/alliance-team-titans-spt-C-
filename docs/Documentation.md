@@ -17,7 +17,7 @@ The Student Performance Tracker (SPT) is a web application for managing student 
 - Role-specific profiles (student, teacher, admin).
 
 ### Enrollment & Offerings
-- Admin: create programs, disciplines, offerings.
+- Admin: create programs, subjects, offerings.
 - Student: submit enrollment requests and select schedules.
 - Admin: approve/reject enrollment queue.
 

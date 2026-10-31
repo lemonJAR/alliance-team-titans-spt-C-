@@ -321,15 +321,19 @@ export default function TeacherHome() {
   }
 
   async function selectOffering(off) {
-    setSelected(off);
+    const offering = {
+      ...off,
+      subjectId: off.subject_id ?? off.subject,
+    };
+    setSelected(offering);
     setEnrollments([]);
     setGrades([]);
     setErrors({});
     try {
       setLoading(true);
       const [enrollmentRes, gradeRes] = await Promise.all([
-        fetchOfferingEnrollments(off.id),
-        fetchGrades({ offering: off.id }),
+        fetchOfferingEnrollments(offering.id),
+        fetchGrades({ offering: offering.id }),
       ]);
       const gradeMap = new Map((gradeRes.data || []).map((g) => [g.student, g]));
       setGrades(gradeRes.data || []);
@@ -339,7 +343,7 @@ export default function TeacherHome() {
           enrollment_id: r.id,
           student_id: r.student_id,
           student_name: r.student_name,
-          discipline_id: r.discipline_id,
+          subjectId: r.subject_id,
           student_id_no: r.student_id_no,
           prelim: fmtGrade(existing?.prelim ?? ''),
           midterm: fmtGrade(existing?.midterm ?? ''),
@@ -383,7 +387,7 @@ export default function TeacherHome() {
 
     const payload = {
       student: row.student_id,
-      discipline: row.discipline_id || selected.discipline,
+      subject: row.subjectId || selected.subjectId,
       offering: selected.id,
       term: selected.term,
       prelim: row.prelim === '' ? null : Number(row.prelim),
@@ -455,8 +459,8 @@ export default function TeacherHome() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: '56vh', overflowY: 'auto', paddingRight: 2 }}>
             {offerings.length === 0 && <div style={{ ...shell.helperText, padding: '0 10px' }}>No assigned offerings yet.</div>}
             {offerings.map((off) => (
-              <button className="sidebar-offering-action" key={off.id} title={`${off.offer_code} · ${off.discipline_code}`} onClick={() => selectOffering(off)} style={shell.offeringBtn(selected?.id === off.id)}>
-                {!sidebarCollapsed && <><span style={{ fontWeight: 700 }}>{off.offer_code}</span><span style={{ fontSize: 11, color: '#94a3b8' }}>{off.discipline_code} • {off.term_label}</span></>}
+              <button className="sidebar-offering-action" key={off.id} title={`${off.offer_code} · ${off.subject_code}`} onClick={() => selectOffering(off)} style={shell.offeringBtn(selected?.id === off.id)}>
+                {!sidebarCollapsed && <><span style={{ fontWeight: 700 }}>{off.offer_code}</span><span style={{ fontSize: 11, color: '#94a3b8' }}>{off.subject_code} • {off.term_label}</span></>}
                 {sidebarCollapsed && <span style={{ fontWeight: 700 }}>{off.offer_code.slice(0, 3)}</span>}
               </button>
             ))}
@@ -489,7 +493,7 @@ export default function TeacherHome() {
           <section style={shell.hero}>
             <div style={shell.heroText}>
               <h1 style={shell.title}>
-                {selected ? `${selected.offer_code} · ${selected.discipline_name}` : 'Select an offering'}
+                {selected ? `${selected.offer_code} · ${selected.subject_name}` : 'Select an offering'}
               </h1>
               <p style={shell.subtitle}>
                 Post preliminary, midterm, and finals grades for the students assigned to your class. Existing grades can be updated directly from this screen.
