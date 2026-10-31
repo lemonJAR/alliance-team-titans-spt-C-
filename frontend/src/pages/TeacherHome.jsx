@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   fetchTeacherOfferings,
@@ -290,13 +290,6 @@ export default function TeacherHome() {
   const [savingId, setSavingId] = useState(null);
   const [errors, setErrors] = useState({});
 
-  useEffect(() => {
-    loadOfferings();
-    getTeacherProfile()
-      .then(({ data }) => setTeacherProfile(data))
-      .catch(() => setTeacherProfile(null));
-  }, []);
-
   async function loadOfferings() {
     try {
       const { data } = await fetchTeacherOfferings();
@@ -309,6 +302,17 @@ export default function TeacherHome() {
       alert('Failed to load offerings.');
     }
   }
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      loadOfferings();
+      getTeacherProfile()
+        .then(({ data }) => setTeacherProfile(data))
+        .catch(() => setTeacherProfile(null));
+    });
+  // loadOfferings is intentionally called once when the teacher dashboard mounts.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleLogout() {
     try {

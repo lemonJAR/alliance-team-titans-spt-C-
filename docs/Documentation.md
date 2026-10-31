@@ -28,7 +28,7 @@ The Student Performance Tracker (SPT) is a web application for managing student 
 
 ### Reports & Audit
 - Admin: generate grade summary reports, export PDF/CSV/XLSX, print.
-- Audit logs for key actions.
+- Audit logs for key actions, filterable by action, actor type, actor ID, or actor email.
 
 ### Notifications
 - System notifications for offerings, enrollment, and grade updates.

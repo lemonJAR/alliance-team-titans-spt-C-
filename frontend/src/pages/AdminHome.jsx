@@ -263,7 +263,7 @@ useEffect(() => {
 }, []);
 
   useEffect(() => {
-    if (!subject.program) { setPrereqOptions([]); return; }
+    if (!subject.program) { queueMicrotask(() => setPrereqOptions([])); return; }
     fetchSubjects(subject.program)
       .then(({ data }) => setPrereqOptions(data))
       .catch(console.error);
@@ -702,7 +702,13 @@ function TeacherTab() {
   }, []);
 
   useEffect(() => {
-    if (!form.department) { setSubjects([]); set('subjects', []); return; }
+    if (!form.department) {
+      queueMicrotask(() => {
+        setSubjects([]);
+        set('subjects', []);
+      });
+      return;
+    }
     const load = async () => {
       try {
         const { data: progs } = await fetchProgram(form.department);
@@ -710,7 +716,7 @@ function TeacherTab() {
         setSubjects(results.flatMap(({ data }) => data));
       } catch (e) { console.error(e); }
     };
-    set('subjects', []);
+    queueMicrotask(() => set('subjects', []));
     load();
   }, [form.department]);
 
@@ -1100,9 +1106,15 @@ function StudentTab() {
   }, []);
 
   useEffect(() => {
-    if (!form.college) { setPrograms([]); set('program', ''); return; }
+    if (!form.college) {
+      queueMicrotask(() => {
+        setPrograms([]);
+        set('program', '');
+      });
+      return;
+    }
     fetchProgram(form.college).then(({ data }) => setPrograms(data)).catch(console.error);
-    set('program', '');
+    queueMicrotask(() => set('program', ''));
   }, [form.college]);
 
   async function loadStudents() {
@@ -1617,6 +1629,8 @@ function ApprovalQueue() {
   const [statusFilter,  setStatusFilter]  = useState('PENDING');
   const [expandedKey,   setExpandedKey]   = useState(null);
 
+  // loadQueue is intentionally scoped to the current tab and status filter.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadQueue(); }, [statusFilter]);
 
   async function loadQueue() {
@@ -1629,7 +1643,7 @@ function ApprovalQueue() {
     finally { setLoading(false); }
   }
 
-  // Group: year_level -> program -> "DISC_CODE - DISC_NAME" -> [enrollments]
+  // Group: year_level -> program -> "SUBJECT_CODE - SUBJECT_NAME" -> [enrollments]
   const grouped = queue.reduce((acc, enr) => {
     const yl   = enr.year_level ?? '?';
     const prog = enr.program    ?? 'Unknown';
@@ -1996,8 +2010,10 @@ function OfferingsTab() {
 
   useEffect(() => {
     if (!selProgram || !selYearLevel || !selSemester) {
-      setSubjects([]);
-      setOfferings([]);
+      queueMicrotask(() => {
+        setSubjects([]);
+        setOfferings([]);
+      });
       return;
     }
     fetchSubjects(selProgram).then(({ data }) => {
@@ -2019,7 +2035,7 @@ function OfferingsTab() {
 
   useEffect(() => {
     if (!selTerm || !selProgram || !selYearLevel || !selSemester) {
-      setOfferings([]);
+      queueMicrotask(() => setOfferings([]));
       return;
     }
     fetchOfferings({
@@ -2384,7 +2400,7 @@ function OfferingsTab() {
 }
 
 
-function UserPagination({ page, totalPages, totalItems, pageSize, onPageChange }) {
+function UserPagination({ page, totalPages, totalItems, pageSize, onPageChange, itemLabel = 'users' }) {
   const firstItem = (page - 1) * pageSize + 1;
   const lastItem = Math.min(page * pageSize, totalItems);
 
@@ -2395,7 +2411,7 @@ function UserPagination({ page, totalPages, totalItems, pageSize, onPageChange }
       borderTop: '1px solid var(--app-border)', flexWrap: 'wrap',
     }}>
       <span style={{ fontSize: 12, color: c.muted }}>
-        Showing {firstItem}-{lastItem} of {totalItems} users
+        Showing {firstItem}-{lastItem} of {totalItems} {itemLabel}
       </span>
       {totalPages > 1 && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -2442,9 +2458,11 @@ function UserManagementTab() {
   }
 
   useEffect(() => {
-    reloadUsers()
-      .catch(console.error)
-      .finally(() => setLoading(false));
+    queueMicrotask(() => {
+      reloadUsers()
+        .catch(console.error)
+        .finally(() => setLoading(false));
+    });
   }, []);
 
   const normalize = (val) => (val || '').toString().toLowerCase();
@@ -2460,11 +2478,11 @@ function UserManagementTab() {
   const visibleUsers = activeUsers.slice((userPage - 1) * USERS_PER_PAGE, userPage * USERS_PER_PAGE);
 
   useEffect(() => {
-    setUserPage(1);
+    queueMicrotask(() => setUserPage(1));
   }, [userAccountTab, search]);
 
   useEffect(() => {
-    setUserPage((page) => Math.min(page, totalUserPages));
+    queueMicrotask(() => setUserPage((page) => Math.min(page, totalUserPages)));
   }, [totalUserPages]);
 
   async function toggleActive(userId, isActive) {
@@ -2762,9 +2780,6 @@ function GradeManagementTab() {
   const [subjects, setSubjects] = useState([]);
   const [termsList, setTermsList] = useState([]);
   const [grades, setGrades] = useState([]);
-  const [lastParams, setLastParams] = useState(null);
-  const [lastRespCount, setLastRespCount] = useState(null);
-  const [lastRespFirst, setLastRespFirst] = useState(null);
   const [loading, setLoading] = useState(false);
   const [savingId, setSavingId] = useState(null);
   const [studentsList, setStudentsList] = useState([]);
@@ -2808,8 +2823,6 @@ function GradeManagementTab() {
         subject: filters.subject ? parseInt(filters.subject) : undefined,
         period: filters.period || undefined,
       };
-      console.log('loadGrades - params:', paramsForRequest);
-      setLastParams(paramsForRequest);
       const { data } = await fetchGrades(paramsForRequest);
       const mapped = (data || []).map((g) => ({
         ...g,
@@ -2819,8 +2832,6 @@ function GradeManagementTab() {
         remarks: g.remarks ?? '',
       }));
       setGrades(mapped);
-      setLastRespCount(mapped.length);
-      setLastRespFirst(mapped.length ? mapped[0] : null);
     } catch (err) {
       console.error('Failed to load grades', err);
       const status = err.response?.status;
@@ -2883,7 +2894,7 @@ function GradeManagementTab() {
     try {
       await deleteGrade(row.id);
       await loadGrades();
-    } catch (err) {
+    } catch {
       alert('Failed to delete grade.');
     }
   }
@@ -3159,16 +3170,19 @@ function GradeManagementTab() {
 
 
 function NotificationsTab() {
+  const NOTIFICATIONS_PER_PAGE = 10;
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showUnreadOnly, setShowUnreadOnly] = useState(false);
+  const [notificationPage, setNotificationPage] = useState(1);
 
   async function loadNotifications() {
     setLoading(true);
     try {
       const { data } = await fetchNotifications(showUnreadOnly ? { unread: '1' } : undefined);
       setNotifications(data || []);
-    } catch (err) {
+      setNotificationPage(1);
+    } catch {
       alert('Failed to load notifications.');
     } finally {
       setLoading(false);
@@ -3176,8 +3190,16 @@ function NotificationsTab() {
   }
 
   useEffect(() => {
-    loadNotifications().catch(console.error);
+    queueMicrotask(() => loadNotifications().catch(console.error));
+  // loadNotifications reads the current filter state for this tab.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showUnreadOnly]);
+
+  const notificationPageCount = Math.max(1, Math.ceil(notifications.length / NOTIFICATIONS_PER_PAGE));
+  const visibleNotifications = notifications.slice(
+    (notificationPage - 1) * NOTIFICATIONS_PER_PAGE,
+    notificationPage * NOTIFICATIONS_PER_PAGE,
+  );
 
   return (
     <>
@@ -3235,7 +3257,7 @@ function NotificationsTab() {
               </tr>
             </thead>
             <tbody>
-              {notifications.map((item) => (
+              {visibleNotifications.map((item) => (
                 <tr key={item.id}>
                   <td style={s.td}>{item.is_read ? 'Read' : 'Unread'}</td>
                   <td style={s.td}>{item.recipient_email || '--'}</td>
@@ -3247,6 +3269,16 @@ function NotificationsTab() {
               ))}
             </tbody>
           </table>
+        )}
+        {!loading && notifications.length > NOTIFICATIONS_PER_PAGE && (
+          <UserPagination
+            page={notificationPage}
+            totalPages={notificationPageCount}
+            totalItems={notifications.length}
+            pageSize={NOTIFICATIONS_PER_PAGE}
+            onPageChange={setNotificationPage}
+            itemLabel="notifications"
+          />
         )}
       </div>
     </>
@@ -3541,71 +3573,240 @@ function ReportsTab() {
 
 
 function AuditLogTab() {
-  const [filters, setFilters] = useState({ action: '', email: '' });
+  const LOGS_PER_PAGE = 10;
+  const [filters, setFilters] = useState({ action: '', actorType: '', actorId: '', email: '' });
   const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [logPage, setLogPage] = useState(1);
+  const [currentTime] = useState(() => Date.now());
 
   async function loadLogs() {
-    const { data } = await fetchAuditLogs(filters);
-    setLogs(data || []);
+    setLoading(true);
+    try {
+      const { action, actorType, actorId, email } = filters;
+      const { data } = await fetchAuditLogs({
+        action,
+        actor_type: actorType,
+        actor_id: actorId,
+        email,
+      });
+      setLogs(data || []);
+      setLogPage(1);
+    } catch {
+      alert('Failed to load audit logs.');
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
-    loadLogs().catch(console.error);
+    queueMicrotask(() => loadLogs().catch(console.error));
+  // loadLogs reads the current filter state when the audit tab mounts.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const logPageCount = Math.max(1, Math.ceil(logs.length / LOGS_PER_PAGE));
+  const visibleLogs = logs.slice(
+    (logPage - 1) * LOGS_PER_PAGE,
+    logPage * LOGS_PER_PAGE,
+  );
+  const activeFilterCount = Object.values(filters).filter(Boolean).length;
+  const latestLog = logs[0];
+  const actorLabel = filters.actorType === 'student' ? 'Student ID' : 'Teacher ID';
+  const actionTone = (action = '') => {
+    const value = action.toLowerCase();
+    if (value.includes('delete') || value.includes('reject')) return { color: c.danger, background: c.dangerBg };
+    if (value.includes('create') || value.includes('approve')) return { color: c.accent, background: c.accentBg };
+    if (value.includes('update') || value.includes('edit')) return { color: c.info, background: c.infoBg };
+    return { color: c.muted, background: c.panel };
+  };
+  const formatRelativeTime = (value) => {
+    if (!value) return '--';
+    const seconds = Math.max(0, Math.floor((currentTime - new Date(value).getTime()) / 1000));
+    if (seconds < 60) return 'Just now';
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+    if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
+    return new Date(value).toLocaleDateString();
+  };
+  const clearFilters = () => {
+    setFilters({ action: '', actorType: '', actorId: '', email: '' });
+    setLogs([]);
+    setLogPage(1);
+  };
 
   return (
     <>
       <div>
         <div style={s.pageTitle}>Audit Logs</div>
-        <div style={s.pageSub}>Track administrative actions and grade changes.</div>
+        <div style={s.pageSub}>Review administrative actions, account changes, and grade activity.</div>
       </div>
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, alignItems: 'flex-start' }}>
-        <div style={{ ...s.panel, flex: '0 0 320px', maxWidth: 320 }}>
-          <PanelTitle>Search Logs</PanelTitle>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <input
-              style={s.input}
-              placeholder="Action"
-              value={filters.action}
-              onChange={(e) => setFilters({ ...filters, action: e.target.value })}
-            />
-            <input
-              style={s.input}
-              placeholder="User email"
-              value={filters.email}
-              onChange={(e) => setFilters({ ...filters, email: e.target.value })}
-            />
+      <div style={{ ...s.panel, width: '100%', boxSizing: 'border-box', padding: 0, overflow: 'hidden' }}>
+        <SectionHeader
+          title="Audit Activity"
+          right={`${logs.length} ${logs.length === 1 ? 'entry' : 'entries'}`}
+        />
+        <div style={{ padding: '12px 16px', background: 'var(--app-card)', borderBottom: '1px solid var(--app-border)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 1.1fr) minmax(220px, 1.1fr) minmax(260px, 1.25fr) auto', alignItems: 'end', gap: 10 }}>
+            <div>
+              <label style={s.label}>Action</label>
+              <input
+                style={s.input}
+                placeholder="Search by action"
+                value={filters.action}
+                onChange={(e) => setFilters({ ...filters, action: e.target.value })}
+              />
+            </div>
+            <div>
+              <label style={s.label}>Actor type</label>
+              <select
+                style={s.input}
+                value={filters.actorType}
+                onChange={(e) => setFilters({ ...filters, actorType: e.target.value, actorId: '', email: '' })}
+              >
+                <option value="">All actors</option>
+                <option value="student">Student</option>
+                <option value="teacher">Teacher</option>
+              </select>
+            </div>
+            {filters.actorType ? (
+              <div>
+                <label style={s.label}>Actor ID <span style={{ fontWeight: 400, textTransform: 'none' }}>({actorLabel})</span></label>
+                <input
+                  style={s.input}
+                  placeholder={`Search by ${actorLabel.toLowerCase()}`}
+                  value={filters.actorId}
+                  onChange={(e) => setFilters({ ...filters, actorId: e.target.value })}
+                />
+              </div>
+            ) : (
+              <div>
+                <label style={s.label}>Actor email</label>
+                <input
+                  style={s.input}
+                  placeholder="Search by actor email"
+                  value={filters.email}
+                  onChange={(e) => setFilters({ ...filters, email: e.target.value })}
+                />
+              </div>
+            )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifySelf: 'start' }}>
+              <button style={{ ...s.submitBtn(false), marginTop: 0, whiteSpace: 'nowrap' }} onClick={loadLogs}>Search logs</button>
+              <button
+                type="button"
+                style={{ ...s.paginationButton(false), width: 40, height: 40, padding: 0, display: 'grid', placeItems: 'center', fontSize: 18 }}
+                onClick={loadLogs}
+                title="Refresh audit logs"
+                aria-label="Refresh audit logs"
+              >
+                ↻
+              </button>
+              {activeFilterCount > 0 && (
+                <button
+                  type="button"
+                  style={{ ...s.paginationButton(false), padding: '10px 14px', whiteSpace: 'nowrap' }}
+                  onClick={clearFilters}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
           </div>
-          <button style={{ ...s.submitBtn(false), marginTop: 10 }} onClick={loadLogs}>Search</button>
+          <div style={{ marginTop: 6, fontSize: 11, color: c.muted }}>
+            Choose Student or Teacher to search by actor ID. Use All actors to search by actor email.
+          </div>
         </div>
 
-  <div style={{ ...s.panel, flex: '1 1 520px', padding: 0, overflow: 'hidden', minWidth: 0 }}>
-          <SectionHeader title="Recent Activity" />
-          {logs.length === 0 ? (
-            <div style={{ padding: 16, color: c.muted }}>No logs found.</div>
-          ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-              <thead>
-                <tr style={{ background: 'var(--app-panel)' }}>
-                  {['Action', 'User', 'IP', 'When'].map((h) => (
-                    <th key={h} style={s.th}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {logs.slice(0, 200).map((log) => (
-                  <tr key={log.id}>
-                    <td style={s.td}>{log.action}</td>
-                    <td style={s.td}>{log.user_email || '--'}</td>
-                    <td style={s.td}>{log.ip_address || '--'}</td>
-                    <td style={s.td}>{new Date(log.created_at).toLocaleString()}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8, padding: '0 8px 8px', background: 'var(--app-card)', borderBottom: '1px solid var(--app-border)', boxShadow: 'none' }}>
+          {[
+            ['Total entries', logs.length],
+            ['Active filters', activeFilterCount],
+            ['Latest activity', formatRelativeTime(latestLog?.created_at)],
+          ].map(([label, value]) => (
+            <div
+              key={label}
+              style={{
+                padding: '10px 12px',
+                background: 'var(--app-card)',
+                border: '1px solid var(--app-border)',
+                borderRadius: 7,
+                boxShadow: 'none',
+                textAlign: 'center',
+              }}
+            >
+              <div style={{ fontSize: 10, color: c.muted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{label}</div>
+              <div style={{ marginTop: 4, fontSize: 18, fontWeight: 700, color: c.text }}>{value}</div>
+            </div>
+          ))}
         </div>
+
+        {loading ? (
+          <div style={{ ...s.comingSoon, minHeight: 160, padding: '32px 16px', boxSizing: 'border-box' }}>
+            <div style={{ fontSize: 13, color: c.muted }}>Loading audit activity...</div>
+          </div>
+        ) : logs.length === 0 ? (
+          <div style={{ ...s.comingSoon, minHeight: 180, padding: '36px 16px', boxSizing: 'border-box', gap: 8 }}>
+            <div style={{ width: 38, height: 38, display: 'grid', placeItems: 'center', borderRadius: '50%', background: c.panel, color: c.muted, fontSize: 20 }}>⌕</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: c.text }}>
+              {activeFilterCount > 0 ? 'No matching activity' : 'No audit activity yet'}
+            </div>
+            <div style={{ fontSize: 12, color: c.muted }}>
+              {activeFilterCount > 0 ? 'Try adjusting your filters or clear them to see all activity.' : 'Administrative actions will appear here when they are recorded.'}
+            </div>
+            {activeFilterCount > 0 && (
+              <button type="button" style={s.paginationButton(false)} onClick={clearFilters}>Clear filters</button>
+            )}
+          </div>
+        ) : (
+          <>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <thead>
+                  <tr style={{ background: 'var(--app-panel)' }}>
+                    {['Action', 'Actor', 'IP Address', 'When'].map((h) => (
+                      <th key={h} style={s.th}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleLogs.map((log, index) => (
+                    <tr key={log.id} style={{ background: index % 2 === 0 ? 'transparent' : c.rowAlt }}>
+                      <td style={s.td}>
+                        <span style={{
+                          display: 'inline-block', padding: '4px 8px', borderRadius: 999,
+                          fontSize: 10, fontWeight: 700, letterSpacing: '0.04em',
+                          color: actionTone(log.action).color, background: actionTone(log.action).background,
+                        }}>
+                          {log.action || 'UNKNOWN'}
+                        </span>
+                      </td>
+                      <td style={s.td}>
+                        <div style={{ color: c.text }}>{log.user_email || log.actor_id || '--'}</div>
+                        {log.actor_type && <div style={{ marginTop: 3, fontSize: 10, color: c.muted, textTransform: 'capitalize' }}>{log.actor_type}</div>}
+                      </td>
+                      <td style={{ ...s.td, fontFamily: 'monospace', fontSize: 11 }}>{log.ip_address || '--'}</td>
+                      <td style={{ ...s.td, whiteSpace: 'nowrap' }}>
+                        <div style={{ color: c.text }}>{formatRelativeTime(log.created_at)}</div>
+                        {log.created_at && <div style={{ marginTop: 3, fontSize: 10, color: c.muted }}>{new Date(log.created_at).toLocaleString()}</div>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {logs.length > LOGS_PER_PAGE && (
+              <UserPagination
+                page={logPage}
+                totalPages={logPageCount}
+                totalItems={logs.length}
+                pageSize={LOGS_PER_PAGE}
+                onPageChange={setLogPage}
+                itemLabel="audit entries"
+              />
+            )}
+          </>
+        )}
       </div>
     </>
   );

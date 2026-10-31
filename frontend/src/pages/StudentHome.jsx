@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -399,7 +399,7 @@ function ProspectusTab() {
       .finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { queueMicrotask(() => load()); }, [load]);
 
   const total         = rows.reduce((sum, d) => sum + (d.units || 0), 0);
   const enrolledCount = rows.filter((r) => r.request_status === 'ENROLLED').length;
@@ -582,8 +582,10 @@ function EnrollmentTab() {
       .then(({ data }) => setActiveTerm(data.find((t) => t.is_active) || null))
       .catch(console.error);
 
-    setLoadingMain(true);
-    reload().catch(console.error).finally(() => setLoadingMain(false));
+    queueMicrotask(() => {
+      setLoadingMain(true);
+      reload().catch(console.error).finally(() => setLoadingMain(false));
+    });
   }, [reload]);
 
   async function handleSelectSchedule(enrollmentId, offeringId) {
@@ -664,7 +666,7 @@ function EnrollmentTab() {
                             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, marginTop: 8 }}>
                               <thead>
                                 <tr style={{ background: 'var(--app-panel)' }}>
-                                  {['Offer Code', 'Teacher', 'Schedule', 'Room', 'Slots', ''].map((h, idx) => (
+                                  {['Offer Code', 'Teacher', 'Schedule', 'Room', 'Slots', ''].map((h) => (
                                     <th key={h} style={{ ...s.th, background: 'transparent', paddingRight: 20 }}>{h}</th>
                                   ))}
                                 </tr>

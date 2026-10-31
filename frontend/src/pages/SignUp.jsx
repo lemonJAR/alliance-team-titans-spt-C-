@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { register, verifyStudent } from "../controllers/accountController";
 import Logo from "../assets/Logo.png";
 
@@ -16,7 +15,6 @@ const initialForm = {
 };
 
 export default function SignUp() {
-  const navigate = useNavigate();
   const [form, setForm] = useState(initialForm);
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
