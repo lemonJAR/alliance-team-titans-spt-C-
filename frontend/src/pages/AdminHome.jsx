@@ -1674,12 +1674,13 @@ function ApprovalQueue() {
   const isPending = statusFilter === 'PENDING';
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div style={{ ...s.panel, padding: 0, gap: 0, overflow: 'hidden' }}>
+      <SectionHeader
+        title="Request Queue"
+        right={`${queue.length} ${queue.length === 1 ? 'request' : 'requests'}`}
+      />
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <div style={{ fontSize: 18, fontWeight: 600, color: c.text, letterSpacing: '-0.01em' }}>
-          Enrollment Requests
-        </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '14px 18px', background: 'var(--app-card)', borderBottom: '1px solid var(--app-border)' }}>
 
         {/* Status filter pills */}
         <div style={{ display: 'flex', gap: 6 }}>
@@ -1691,8 +1692,8 @@ function ApprovalQueue() {
                 background: active ? sc.bg : 'transparent',
                 border:     `1px solid ${active ? sc.border : 'var(--app-border)'}`,
                 color:      active ? sc.color : c.muted,
-                borderRadius: 20, padding: '4px 12px',
-                fontSize: 11, fontWeight: 600, letterSpacing: '0.06em',
+                borderRadius: 999, padding: '6px 12px',
+                fontSize: 12, fontWeight: 600, letterSpacing: '0.04em',
                 cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
               }}>
                 {st}
@@ -1749,16 +1750,16 @@ function ApprovalQueue() {
       </div>
 
       {loading && (
-        <div style={{ ...s.comingSoon, minHeight: 140 }}>
+        <div style={{ ...s.comingSoon, minHeight: 180, borderRadius: 0, border: 'none' }}>
           <div style={{ fontSize: 13, color: c.muted }}>Loading...</div>
         </div>
       )}
 
       {!loading && queue.length === 0 && (
-        <div style={{ ...s.comingSoon, minHeight: 160 }}>
-          <div style={{ fontSize: 36, opacity: 0.25 }}>*</div>
+        <div style={{ ...s.comingSoon, minHeight: 160, borderRadius: 0, border: 'none' }}>
+          <div style={{ fontSize: 30, opacity: 0.25 }}>*</div>
           <div style={{ fontSize: 13, color: c.muted }}>
-            No {statusFilter.toLowerCase()} enrollment requests.
+            No {statusFilter.toLowerCase()} requests.
           </div>
         </div>
       )}
@@ -1972,6 +1973,7 @@ function OfferingsTab() {
   const [disciplines, setDisciplines] = useState([]);
   const [offerings,   setOfferings]   = useState([]);
   const [expandedDisc, setExpandedDisc] = useState(null);
+  const [activeOfferingTab, setActiveOfferingTab] = useState('offerings');
   const [forms,       setForms]       = useState({});
   const [submitting,  setSubmitting]  = useState({});
   const [showTermModal, setShowTermModal] = useState(false);
@@ -2080,17 +2082,28 @@ function OfferingsTab() {
       <div>
         <div style={s.pageTitle}>Subject Offerings</div>
         <div style={s.pageSub}>
-          Select a term, program, and semester - then add schedule offerings per discipline.
-        </div>
-        <div style={{ ...s.hint, marginTop: 8 }}>
-          To assign an existing teacher, open a discipline card and use the Existing Teacher dropdown in the Add New Offering section.
+          Set the academic context, then manage offerings by discipline.
         </div>
       </div>
 
+      <div style={{ ...s.panel, padding: 0, overflow: 'hidden' }}>
+        <div style={s.tabNav}>
+          {[
+            { key: 'offerings', label: 'Subject Offerings' },
+            { key: 'requests', label: 'Enrollment Requests' },
+          ].map((tab) => (
+            <button key={tab.key} type="button" onClick={() => setActiveOfferingTab(tab.key)} style={s.tabButton(activeOfferingTab === tab.key)}>
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {activeOfferingTab === 'offerings' && (
+          <div style={{ ...s.tabPanel, display: 'flex', flexDirection: 'column', gap: 14 }}>
       <div style={{
         ...s.panel,
         flex: '0 0 auto',
-        flexDirection: 'row', flexWrap: 'wrap', gap: 16, alignItems: 'flex-end', padding: '18px 24px',
+        flexDirection: 'row', flexWrap: 'wrap', gap: 12, alignItems: 'flex-end', padding: '16px 20px',
       }}>
         <div style={{ minWidth: 200, flex: 1 }}>
           <label style={s.label}>Academic Term</label>
@@ -2153,16 +2166,16 @@ function OfferingsTab() {
       </div>
 
       {!filtersReady && (
-        <div style={{ ...s.comingSoon, minHeight: 220 }}>
-          <div style={{ fontSize: 40, opacity: 0.25 }}>*</div>
+        <div style={{ ...s.comingSoon, minHeight: 120 }}>
+          <div style={{ fontSize: 32, opacity: 0.25 }}>*</div>
           <div style={{ fontSize: 13, color: 'var(--app-muted)' }}>
-            Select a program, year level, and semester to manage offerings.
+            Choose a program, year level, and semester to continue.
           </div>
         </div>
       )}
 
       {filtersReady && disciplines.length === 0 && (
-        <div style={{ ...s.comingSoon, minHeight: 160 }}>
+        <div style={{ ...s.comingSoon, minHeight: 120 }}>
           <div style={{ fontSize: 36, opacity: 0.25 }}>*</div>
           <div style={{ fontSize: 13, color: 'var(--app-muted)' }}>
             No disciplines found for this program / year / semester combo.
@@ -2357,19 +2370,62 @@ function OfferingsTab() {
         </div>
       )}
 
-      <div style={{
-        height: 1,
-        background: 'linear-gradient(to right, transparent, var(--app-border), transparent)',
-        margin: '4px 0',
-      }} />
+          </div>
+        )}
 
-      <ApprovalQueue />
+        {activeOfferingTab === 'requests' && (
+          <div style={s.tabPanel}>
+            <ApprovalQueue />
+          </div>
+        )}
+      </div>
     </>
   );
 }
 
 
+function UserPagination({ page, totalPages, totalItems, pageSize, onPageChange }) {
+  const firstItem = (page - 1) * pageSize + 1;
+  const lastItem = Math.min(page * pageSize, totalItems);
+
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      gap: 12, marginTop: 16, paddingTop: 12,
+      borderTop: '1px solid var(--app-border)', flexWrap: 'wrap',
+    }}>
+      <span style={{ fontSize: 12, color: c.muted }}>
+        Showing {firstItem}-{lastItem} of {totalItems} users
+      </span>
+      {totalPages > 1 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <button
+            type="button"
+            style={s.paginationButton(page === 1)}
+            disabled={page === 1}
+            onClick={() => onPageChange(page - 1)}
+          >
+            Previous
+          </button>
+          <span style={{ fontSize: 12, color: c.muted, minWidth: 72, textAlign: 'center' }}>
+            Page {page} of {totalPages}
+          </span>
+          <button
+            type="button"
+            style={s.paginationButton(page === totalPages)}
+            disabled={page === totalPages}
+            onClick={() => onPageChange(page + 1)}
+          >
+            Next
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function UserManagementTab() {
+  const USERS_PER_PAGE = 10;
   const [teachers, setTeachers] = useState([]);
   const [students, setStudents] = useState([]);
   const [search, setSearch] = useState('');
@@ -2377,6 +2433,7 @@ function UserManagementTab() {
   const [editingUser, setEditingUser] = useState(null);
   const [editSaving, setEditSaving] = useState(false);
   const [userAccountTab, setUserAccountTab] = useState('faculty');
+  const [userPage, setUserPage] = useState(1);
 
   async function reloadUsers() {
     const [tRes, sRes] = await Promise.all([fetchTeachers(), fetchStudents()]);
@@ -2396,6 +2453,19 @@ function UserManagementTab() {
     if (!key) return true;
     return [row.full_name, row.email, row.employee_id, row.student_id].some((v) => normalize(v).includes(key));
   };
+  const filteredTeachers = teachers.filter(matches);
+  const filteredStudents = students.filter(matches);
+  const activeUsers = userAccountTab === 'faculty' ? filteredTeachers : filteredStudents;
+  const totalUserPages = Math.max(1, Math.ceil(activeUsers.length / USERS_PER_PAGE));
+  const visibleUsers = activeUsers.slice((userPage - 1) * USERS_PER_PAGE, userPage * USERS_PER_PAGE);
+
+  useEffect(() => {
+    setUserPage(1);
+  }, [userAccountTab, search]);
+
+  useEffect(() => {
+    setUserPage((page) => Math.min(page, totalUserPages));
+  }, [totalUserPages]);
 
   async function toggleActive(userId, isActive) {
     try {
@@ -2553,7 +2623,7 @@ function UserManagementTab() {
 
           {userAccountTab === 'faculty' && (
             <div style={s.tabPanel}>
-              {teachers.filter(matches).length === 0 ? (
+              {filteredTeachers.length === 0 ? (
                 <div style={{ color: c.muted }}>No teachers found.</div>
               ) : (
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
@@ -2570,7 +2640,7 @@ function UserManagementTab() {
                     </tr>
                   </thead>
                   <tbody>
-                    {teachers.filter(matches).map((t) => (
+                    {visibleUsers.map((t) => (
                       <tr key={t.id}>
                         <td style={s.td}>{t.full_name}</td>
                         <td style={s.td}>{t.email}</td>
@@ -2604,12 +2674,21 @@ function UserManagementTab() {
                   </tbody>
                 </table>
               )}
+              {filteredTeachers.length > 0 && (
+                <UserPagination
+                  page={userPage}
+                  totalPages={totalUserPages}
+                  totalItems={filteredTeachers.length}
+                  pageSize={USERS_PER_PAGE}
+                  onPageChange={setUserPage}
+                />
+              )}
             </div>
           )}
 
           {userAccountTab === 'student' && (
             <div style={s.tabPanel}>
-              {students.filter(matches).length === 0 ? (
+              {filteredStudents.length === 0 ? (
                 <div style={{ color: c.muted }}>No students found.</div>
               ) : (
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
@@ -2626,7 +2705,7 @@ function UserManagementTab() {
                     </tr>
                   </thead>
                   <tbody>
-                    {students.filter(matches).map((st) => (
+                    {visibleUsers.map((st) => (
                       <tr key={st.id}>
                         <td style={s.td}>{st.full_name}</td>
                         <td style={s.td}>{st.email}</td>
@@ -2659,6 +2738,15 @@ function UserManagementTab() {
                     ))}
                   </tbody>
                 </table>
+              )}
+              {filteredStudents.length > 0 && (
+                <UserPagination
+                  page={userPage}
+                  totalPages={totalUserPages}
+                  totalItems={filteredStudents.length}
+                  pageSize={USERS_PER_PAGE}
+                  onPageChange={setUserPage}
+                />
               )}
             </div>
           )}
