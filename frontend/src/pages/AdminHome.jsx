@@ -250,6 +250,7 @@ function SchoolTab() {
   const [disc,    setDisc]    = useState({ program: '', name: '', code: '', year_level: '1', semester: '1', units: '3', prerequisites: [] });
   const [semload, setSemload] = useState({ program: '', year_level: '1', semester: '1', max_units: '27' });
   const [loadFilter, setLoadFilter] = useState('');
+  const [setupSection, setSetupSection] = useState('overview');
 
 useEffect(() => {
   Promise.all([loadColleges(), loadPrograms(), loadSemLoads()]);
@@ -338,11 +339,57 @@ useEffect(() => {
     <>
       <div>
         <div style={s.pageTitle}>School Setup</div>
-        <div style={s.pageSub}>Configure colleges, programs, disciplines, and semester unit loads.</div>
+        <div style={s.pageSub}>Build your academic structure one step at a time.</div>
       </div>
 
+      <div style={{ ...s.panel, padding: 0, overflow: 'hidden' }}>
+        <div style={s.tabNav}>
+          {[
+            { key: 'overview', label: 'Overview' },
+            { key: 'colleges', label: 'Colleges' },
+            { key: 'programs', label: 'Degree Programs' },
+            { key: 'disciplines', label: 'Disciplines' },
+            { key: 'loads', label: 'Semester Loads' },
+          ].map((tab) => (
+            <button key={tab.key} type="button" onClick={() => setSetupSection(tab.key)} style={s.tabButton(setupSection === tab.key)}>
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {setupSection === 'overview' && (
+          <div style={{ ...s.tabPanel, display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div>
+              <div style={s.panelTitle}>Academic Structure</div>
+              <p style={s.hint}>Configure each layer in order without displaying every form at once.</p>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 12 }}>
+              {[
+                { key: 'colleges', label: 'Colleges', count: colleges.length, description: 'Top-level academic units.' },
+                { key: 'programs', label: 'Degree Programs', count: programs.length, description: 'Programs belonging to a college.' },
+                { key: 'disciplines', label: 'Disciplines', count: '—', description: 'Subjects assigned to programs.' },
+                { key: 'loads', label: 'Semester Loads', count: semLoads.length, description: 'Unit limits by program and term.' },
+              ].map((item) => (
+                <button key={item.key} type="button" onClick={() => setSetupSection(item.key)} style={{
+                  textAlign: 'left', background: 'var(--app-panel)', border: '1px solid var(--app-border)',
+                  borderRadius: 8, padding: 16, color: 'var(--app-text)', cursor: 'pointer', fontFamily: 'inherit',
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'baseline' }}>
+                    <strong style={{ fontSize: 14 }}>{item.label}</strong>
+                    <span style={{ color: 'var(--app-accent)', fontSize: 20, fontWeight: 700 }}>{item.count}</span>
+                  </div>
+                  <div style={{ color: 'var(--app-muted)', fontSize: 12, marginTop: 8 }}>{item.description}</div>
+                  <div style={{ color: 'var(--app-accent)', fontSize: 12, marginTop: 14, fontWeight: 600 }}>Manage →</div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {['colleges', 'programs', 'disciplines'].includes(setupSection) && (
+      <div style={s.tabPanel}>
       <div style={s.panels}>
-        <div style={s.panel}>
+        {setupSection === 'colleges' && <div style={s.panel}>
           <PanelTitle>Add College</PanelTitle>
           <p style={s.hint}>Top-level unit, e.g. School of Computer Studies.</p>
           <form onSubmit={handleAddCollege} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -356,9 +403,9 @@ useEffect(() => {
             </Field>
             <button type="submit" style={s.submitBtn(false)}>Add College</button>
           </form>
-        </div>
+        </div>}
 
-        <div style={s.panel}>
+        {setupSection === 'programs' && <div style={s.panel}>
           <PanelTitle>Add Degree Program</PanelTitle>
           <p style={s.hint}>Programs belong to a college, e.g. BSCS under SCS.</p>
           <form onSubmit={handleAddProgram} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -381,9 +428,9 @@ useEffect(() => {
               Add Degree Program
             </button>
           </form>
-        </div>
+        </div>}
 
-        <div style={s.panel}>
+        {setupSection === 'disciplines' && <div style={s.panel}>
           <PanelTitle>Add Discipline</PanelTitle>
           <p style={s.hint}>Set program, year, semester, units, and optional prerequisites.</p>
           <form onSubmit={handleAddDiscipline} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -440,11 +487,15 @@ useEffect(() => {
               Add Discipline
             </button>
           </form>
-        </div>
+        </div>}
       </div>
+      </div>
+        )}
 
-      <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-        <div style={{ ...s.panel, maxWidth: 300, flex: '0 0 300px' }}>
+        {setupSection === 'loads' && (
+        <div style={s.tabPanel}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 380px) minmax(0, 1fr)', gap: 20, alignItems: 'start' }}>
+        <div style={{ ...s.panel, minWidth: 0 }}>
           <PanelTitle>Set Semester Load</PanelTitle>
           <p style={s.hint}>Define max units per semester per program. Caps student subject selection.</p>
           <form onSubmit={handleAddSemLoad} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -489,8 +540,8 @@ useEffect(() => {
           </form>
         </div>
 
-        <div style={{ flex: 1, minWidth: 320, display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ ...s.panel, minWidth: 0, padding: 0, gap: 0, overflow: 'hidden' }}>
+          <div style={{ padding: '10px 18px', background: 'var(--app-accent-bg)', borderBottom: '1px solid var(--app-border)', display: 'flex', alignItems: 'center', gap: 10 }}>
             <PanelTitle>Semester Loads by Program</PanelTitle>
             <div style={{ marginLeft: 'auto' }}>
               <select style={{ ...s.input, width: 'auto', fontSize: 12, padding: '6px 10px' }}
@@ -502,7 +553,7 @@ useEffect(() => {
           </div>
 
           {filteredLoadKeys.length === 0 && (
-            <div style={{ ...s.comingSoon, minHeight: 140 }}>
+            <div style={{ ...s.comingSoon, minHeight: 360, padding: 24, boxSizing: 'border-box' }}>
               <div style={{ fontSize: 32, opacity: 0.3 }}>*</div>
               <div style={{ fontSize: 13, color: 'var(--app-muted)' }}>No semester loads configured yet.</div>
             </div>
@@ -565,6 +616,9 @@ useEffect(() => {
             </div>
           ))}
         </div>
+      </div>
+        </div>
+        )}
       </div>
     </>
   );
