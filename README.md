@@ -16,6 +16,20 @@ npm run dev
 Set `VITE_API_BASE_URL` in `frontend/.env` to the URL of the C# API. The
 frontend sends JWT credentials using the `Authorization: Bearer <token>` header.
 
+## Development demo accounts
+
+When running the frontend with Vite's development server, these temporary
+local accounts can be used to preview each role:
+
+| Role | Email | Password |
+| --- | --- | --- |
+| Student | `student@example.com` | `Student123!` |
+| Professor | `professor@example.com` | `Professor123!` |
+| Admin | `admin@example.com` | `Admin123!` |
+
+These accounts are disabled in production builds. They are synthetic frontend
+demo sessions, not real API credentials, and must not be used in production.
+
 ## Architecture
 
 - `frontend/src/pages/` contains screen-level views.
