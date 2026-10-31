@@ -40,6 +40,20 @@ the administrator confirms the import. Temporary credentials are generated
 and emailed by the API for each created account; discipline assignments remain
 a separate step.
 
+## Student CSV import
+
+Administrators can bulk-create student accounts from the **Student Enrollment**
+page. Upload a prepared CSV containing these columns:
+
+```csv
+first_name,last_name,middle_name,email,student_id,college_code,program_code,year_level
+Juan,Dela Cruz,,juan.delacruz@example.com,2025-0001,SCS,BSCS,1
+```
+
+The browser validates required fields, email format, duplicate student IDs and
+emails, college and program codes, and year level before showing a preview.
+Only valid rows are submitted after the administrator confirms the import.
+
 ## Validation
 
 ```powershell

@@ -455,7 +455,7 @@ useEffect(() => {
               <input style={s.input} type="text" placeholder="e.g. CS101" maxLength={20}
                 value={disc.code} onChange={(e) => setDisc({ ...disc, code: e.target.value.toUpperCase() })} required />
             </Field>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
               <Field label="Year Level">
                 <select style={s.input} value={disc.year_level}
                   onChange={(e) => setDisc({ ...disc, year_level: e.target.value })} required>
@@ -1077,15 +1077,25 @@ function StudentTab() {
   const [form, setForm]             = useState(emptyForm);
   const [colleges, setColleges]     = useState([]);
   const [programs, setPrograms]     = useState([]);
+  const [allPrograms, setAllPrograms] = useState([]);
   const [students, setStudents]     = useState([]);
   const [loading, setLoading]       = useState(false);
   const [filterProg, setFilterProg] = useState('');
   const [expandedStudent, setExpandedStudent] = useState(null);
+  const [activeStudentTab, setActiveStudentTab] = useState('manual');
+  const csvInputRef = useRef(null);
+  const [csvRows, setCsvRows] = useState([]);
+  const [csvError, setCsvError] = useState('');
+  const [csvImporting, setCsvImporting] = useState(false);
 
   const set = (field, value) => setForm((f) => ({ ...f, [field]: value }));
 
   useEffect(() => {
-    fetchCollege().then(({ data }) => setColleges(data)).catch(console.error);
+    fetchCollege().then(async ({ data }) => {
+      setColleges(data);
+      const results = await Promise.all(data.map((college) => fetchProgram(college.id)));
+      setAllPrograms(results.flatMap(({ data: items }) => items));
+    }).catch(console.error);
     loadStudents();
   }, []);
 
@@ -1115,6 +1125,87 @@ function StudentTab() {
     } finally { setLoading(false); }
   }
 
+  function validateStudentCsv(rows) {
+    const emails = new Set();
+    const studentIds = new Set();
+    return rows.map((row) => {
+      const errors = [];
+      const college = colleges.find((item) => item.code?.toLowerCase() === row.college_code?.toLowerCase());
+      const program = allPrograms.find((item) =>
+        item.code?.toLowerCase() === row.program_code?.toLowerCase()
+        && (!college || String(item.college) === String(college.id) || String(item.college_id) === String(college.id))
+      );
+      if (!row.first_name || !row.last_name || !row.email || !row.student_id || !row.college_code || !row.program_code || !row.year_level) {
+        errors.push('Required fields are missing');
+      }
+      if (row.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row.email)) errors.push('Invalid email');
+      if (row.email && emails.has(row.email.toLowerCase())) errors.push('Duplicate email in file');
+      if (row.student_id && studentIds.has(row.student_id.toLowerCase())) errors.push('Duplicate student ID in file');
+      if (row.email) emails.add(row.email.toLowerCase());
+      if (row.student_id) studentIds.add(row.student_id.toLowerCase());
+      if (!college && row.college_code) errors.push('College code not found');
+      if (!program && row.program_code) errors.push('Program code not found for college');
+      if (!/^[1-4]$/.test(row.year_level)) errors.push('Year level must be 1, 2, 3, or 4');
+      return { ...row, college, program, errors };
+    });
+  }
+
+  function handleCsvFile(event) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    setCsvError('');
+    setCsvRows([]);
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+      setCsvError('Choose a .csv file.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const rows = parseCsv(String(reader.result || ''));
+        if (!rows.length) {
+          setCsvError('The CSV is empty or has no data rows.');
+          return;
+        }
+        setCsvRows(validateStudentCsv(rows));
+      } catch {
+        setCsvError('The CSV could not be read. Check the required columns and try again.');
+      }
+    };
+    reader.onerror = () => setCsvError('The CSV could not be read. Please try again.');
+    reader.readAsText(file);
+  }
+
+  async function handleCsvImport() {
+    const validRows = csvRows.filter((row) => row.errors.length === 0);
+    if (!validRows.length) return;
+    if (!window.confirm(`Create ${validRows.length} student account${validRows.length === 1 ? '' : 's'}? Temporary credentials will be emailed to each student.`)) return;
+    setCsvImporting(true);
+    let created = 0;
+    const failures = [];
+    for (const row of validRows) {
+      try {
+        await adminCreateStudent({
+          first_name: row.first_name,
+          last_name: row.last_name,
+          middle_name: row.middle_name,
+          email: row.email,
+          student_id: row.student_id,
+          program: row.program.id,
+          year_level: parseInt(row.year_level),
+        });
+        created += 1;
+      } catch (error) {
+        failures.push(`Row ${row.rowNumber}: ${error.response?.data ? JSON.stringify(error.response.data) : error.message}`);
+      }
+    }
+    setCsvImporting(false);
+    setCsvRows([]);
+    await loadStudents();
+    alert(`${created} student account${created === 1 ? '' : 's'} created.${failures.length ? ` ${failures.length} row${failures.length === 1 ? '' : 's'} failed:\n${failures.join('\n')}` : ''}`);
+  }
+
   const grouped = students.reduce((acc, st) => {
     const key = st.program_name || 'Unassigned';
     if (!acc[key]) acc[key] = [];
@@ -1140,12 +1231,61 @@ function StudentTab() {
         <div style={s.pageSub}>Create student accounts. Students select their own subjects after logging in.</div>
       </div>
 
-      <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-        <div style={{ ...s.panel, maxWidth: 340, flex: '0 0 340px' }}>
+      <div style={{ ...s.panel, padding: 0, overflow: 'hidden' }}>
+        <div style={s.tabNav}>
+          {[
+            { key: 'manual', label: 'New Student Account' },
+            { key: 'directory', label: 'Students by Program' },
+          ].map((tab) => (
+            <button key={tab.key} type="button" onClick={() => setActiveStudentTab(tab.key)} style={s.tabButton(activeStudentTab === tab.key)}>
+              {tab.label}
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => csvInputRef.current?.click()}
+            style={{ ...s.paginationButton(false), marginLeft: 'auto' }}
+          >
+            Import Student CSV
+          </button>
+          <input ref={csvInputRef} type="file" accept=".csv,text/csv" onChange={handleCsvFile} style={{ display: 'none' }} />
+        </div>
+
+        {(csvRows.length > 0 || csvError) && (
+          <div style={{ ...s.tabPanel, paddingBottom: 8, borderBottom: '1px solid var(--app-border)' }}>
+            <div style={{ ...s.panel, maxWidth: 720, margin: '0 auto' }}>
+              <PanelTitle>Import Student CSV</PanelTitle>
+              <p style={s.hint}>Upload a prepared CSV with student account, college, program, and year-level fields.</p>
+              {csvError && <div style={{ color: c.danger, fontSize: 12, marginTop: 10 }}>{csvError}</div>}
+              {csvRows.length > 0 && (
+                <div style={{ marginTop: 12 }}>
+                  <div style={{ fontSize: 12, color: c.muted, marginBottom: 8 }}>
+                    {csvRows.filter((row) => row.errors.length === 0).length} valid of {csvRows.length} rows
+                  </div>
+                  <div style={{ maxHeight: 180, overflowY: 'auto', border: '1px solid var(--app-border)', borderRadius: 7 }}>
+                    {csvRows.map((row) => (
+                      <div key={row.rowNumber} style={{ padding: '7px 10px', borderBottom: '1px solid var(--app-border)', fontSize: 11, color: row.errors.length ? c.danger : c.text }}>
+                        Row {row.rowNumber}: {row.first_name} {row.last_name} · {row.email} {row.errors.length ? `— ${row.errors.join(', ')}` : '— Ready'}
+                      </div>
+                    ))}
+                  </div>
+                  <button type="button" onClick={handleCsvImport} disabled={csvImporting || !csvRows.some((row) => row.errors.length === 0)} style={{ ...s.submitBtn(csvImporting || !csvRows.some((row) => row.errors.length === 0)), width: '100%', marginTop: 10 }}>
+                    {csvImporting ? 'Creating accounts...' : 'Review and create valid accounts'}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeStudentTab === 'manual' && (
+          <div style={{ ...s.tabPanel, paddingBottom: 8 }}>
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+        <div style={{ ...s.panel, width: '100%', maxWidth: 760, minWidth: 0 }}>
           <PanelTitle>New Student Account</PanelTitle>
           <p style={s.hint}>A temporary password will be emailed. Student selects subjects on first login.</p>
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
               <Field label="First Name">
                 <input style={s.input} type="text" value={form.first_name}
                   onChange={(e) => set('first_name', e.target.value)} required />
@@ -1196,8 +1336,14 @@ function StudentTab() {
           </form>
         </div>
 
-        <div style={{ flex: '1 1 0', minWidth: 320, maxWidth: 1040, display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        </div>
+            </div>
+        )}
+
+        {activeStudentTab === 'directory' && (
+          <div style={{ ...s.tabPanel, paddingBottom: 8 }}>
+        <div style={{ ...s.panel, minWidth: 0, padding: 0, gap: 0, overflow: 'hidden' }}>
+          <div style={{ padding: '10px 18px', background: c.accentBg, borderBottom: '1px solid var(--app-border)', display: 'flex', alignItems: 'center', gap: 10 }}>
             <PanelTitle>Students by Program</PanelTitle>
             <div style={{ marginLeft: 'auto' }}>
               <select style={{ ...s.input, width: 'auto', fontSize: 12, padding: '6px 10px' }}
@@ -1209,7 +1355,7 @@ function StudentTab() {
           </div>
 
           {progKeys.length === 0 && (
-            <div style={{ ...s.comingSoon, minHeight: 180 }}>
+            <div style={{ ...s.comingSoon, minHeight: 420, padding: 24, boxSizing: 'border-box' }}>
               <div style={{ fontSize: 36, opacity: 0.3 }}>*</div>
               <div style={{ fontSize: 14, color: c.muted }}>No students enrolled yet.</div>
             </div>
@@ -1291,20 +1437,22 @@ function StudentTab() {
                                           </div>
                                         </div>
                                       );
-                                    })}
-                                  </div>
-                                )}
-                            </td>
-                          </tr>
-                        )}
-                      </React.Fragment>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          ))}
+                                  })}
+                                </div>
+                              )}
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ))}
         </div>
+        </div>
+        )}
       </div>
     </>
   );
