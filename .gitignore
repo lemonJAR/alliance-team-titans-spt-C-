@@ -1,0 +1,40 @@
+# ───── Node / React (frontend) ─────
+node_modules/
+dist/
+build/
+.vite/
+*.log
+npm-debug.log*
+.env
+.env.local
+.env.*.local
+
+# ───── .NET (backend) ─────
+bin/
+obj/
+*.user
+*.suo
+*.pidb
+*.userprefs
+.vs/
+TestResults/
+*.dll
+*.pdb
+publish/
+
+# ───── Secrets (never commit these) ─────
+backend/appsettings.Development.json
+backend/appsettings.Local.json
+*.pfx
+*.pem
+
+# ───── Editors / OS ─────
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ───── Misc ─────
+*.zip
