@@ -3286,6 +3286,16 @@ function NotificationsTab() {
 }
 
 
+// Report values include text typed by users (remarks, names, subject titles). Escape before writing HTML.
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function ReportsTab() {
   const [filters, setFilters] = useState({ term: '', program: '', year_level: '', student: '', subject: '' });
   const [report, setReport] = useState(null);
@@ -3311,15 +3321,15 @@ function ReportsTab() {
 
     const rows = (report.results || []).map((row) => `
       <tr>
-        <td>${row.student_id_no || row.student || '--'}</td>
-        <td>${row.student_name || '--'}</td>
-        <td>${row.subject_code || '--'}</td>
-        <td>${row.subject_name || '--'}</td>
-        <td>${row.term_label || row.term || '--'}</td>
-        <td>${row.prelim ?? '--'}</td>
-        <td>${row.midterm ?? '--'}</td>
-        <td>${row.finals ?? '--'}</td>
-        <td>${row.remarks || '--'}</td>
+        <td>${escapeHtml(row.student_id_no || row.student || '--')}</td>
+        <td>${escapeHtml(row.student_name || '--')}</td>
+        <td>${escapeHtml(row.subject_code || '--')}</td>
+        <td>${escapeHtml(row.subject_name || '--')}</td>
+        <td>${escapeHtml(row.term_label || row.term || '--')}</td>
+        <td>${escapeHtml(row.prelim ?? '--')}</td>
+        <td>${escapeHtml(row.midterm ?? '--')}</td>
+        <td>${escapeHtml(row.finals ?? '--')}</td>
+        <td>${escapeHtml(row.remarks || '--')}</td>
       </tr>
     `).join('');
 

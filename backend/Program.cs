@@ -15,6 +15,8 @@ builder.Services.AddDbContext<SptDbContext>(o => o.UseMySql(cs, ServerVersion.Au
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<AuditService>();
+builder.Services.AddScoped<EmailTokenService>();
+builder.Services.AddSingleton<IEmailSender, ConsoleEmailSender>();   // swap for a real sender later
 
 // ── JWT authentication ──
 var jwtKey = builder.Configuration["Jwt:Key"];
