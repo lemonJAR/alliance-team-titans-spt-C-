@@ -24,7 +24,7 @@ public class EmailTokenService(SptDbContext db)
         var old = await db.EmailTokens
             .Where(t => t.UserId == userId && t.Purpose == purpose && t.UsedAt == null)
             .ToListAsync();
-        foreach (var t in old) t.UsedAt = DateTime.Now;
+        foreach (var t in old) t.UsedAt = DateTime.UtcNow;
 
         var raw = WebEncoders.Base64UrlEncode(RandomNumberGenerator.GetBytes(32));
         db.EmailTokens.Add(new EmailToken
@@ -32,7 +32,7 @@ public class EmailTokenService(SptDbContext db)
             UserId = userId,
             Token = Hash(raw),
             Purpose = purpose,
-            ExpiresAt = DateTime.Now.Add(lifetime)
+            ExpiresAt = DateTime.UtcNow.Add(lifetime)
         });
         await db.SaveChangesAsync();
         return raw;
@@ -45,6 +45,6 @@ public class EmailTokenService(SptDbContext db)
         return db.EmailTokens
             .Include(t => t.User)
             .FirstOrDefaultAsync(t => t.Token == hash && t.Purpose == purpose
-                                      && t.UsedAt == null && t.ExpiresAt > DateTime.Now);
+                                      && t.UsedAt == null && t.ExpiresAt > DateTime.UtcNow);
     }
 }

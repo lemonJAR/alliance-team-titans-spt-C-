@@ -118,7 +118,7 @@ public class AccountController(
             LastName = last,
             IsActive = !(role == Roles.Professor && needsApproval),
             EmailVerified = false,
-            DateJoined = DateTime.Now
+            DateJoined = DateTime.UtcNow
         };
         db.Users.Add(user);
 
@@ -153,10 +153,10 @@ public class AccountController(
         // Already verified (e.g. the page called this twice): treat as success.
         if (rec.User.EmailVerified) return Ok(new { message = "Email verified. You can now sign in." });
 
-        if (rec.UsedAt != null || rec.ExpiresAt < DateTime.Now) return BadRequest(failed);
+        if (rec.UsedAt != null || rec.ExpiresAt < DateTime.UtcNow) return BadRequest(failed);
 
         rec.User.EmailVerified = true;
-        rec.UsedAt = DateTime.Now;
+        rec.UsedAt = DateTime.UtcNow;
         await db.SaveChangesAsync();
 
         await audit.LogAsync("EMAIL_VERIFIED", "User", rec.User.Id, "Email address verified",
@@ -222,7 +222,7 @@ public class AccountController(
         if (rec is null) return BadRequest(new { error = "This reset link is invalid or has expired." });
 
         rec.User.PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.NewPassword!);
-        rec.UsedAt = DateTime.Now;
+        rec.UsedAt = DateTime.UtcNow;
         await db.SaveChangesAsync();
 
         await audit.LogAsync("PASSWORD_RESET", "User", rec.User.Id, "Password reset using email link",

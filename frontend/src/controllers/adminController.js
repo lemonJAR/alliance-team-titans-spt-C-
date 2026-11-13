@@ -27,5 +27,6 @@ export {
   fetchAuditLogs,
   adminUpdateUser,
   adminDeleteUser,
+  adminDeleteStudentRecord,
   fetchNotifications,
 } from "../services/api";

@@ -137,6 +137,8 @@ CREATE TABLE
         subject_id INT NOT NULL,
         teacher_id INT NULL,
         offer_code VARCHAR(30) NOT NULL UNIQUE,
+        schedule VARCHAR(120) NOT NULL DEFAULT 'TBA',
+        room VARCHAR(60) NULL,
         max_slots INT NOT NULL DEFAULT 40,
         current_slots INT NOT NULL DEFAULT 0,
         FOREIGN KEY (term_id) REFERENCES academic_terms (id),

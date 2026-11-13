@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { signIn } from "../controllers/authController";
-import { DEMO_ACCOUNT_HINTS } from "../models/demoAccounts";
 import Logo from "../assets/Logo.png";
 
 const initialForm = { email: "", password: "" };
@@ -122,20 +121,6 @@ export default function Login() {
             Need to verify your email?{" "}
             <Link to="/verify-email/resend" className="link">Resend the link</Link>
         </p>
-
-        {import.meta.env.DEV && (
-            <details className="demo-login">
-              <summary>Development demo accounts</summary>
-              <p>These accounts work locally until the C# API is connected.</p>
-              <ul>
-                {DEMO_ACCOUNT_HINTS.map((account) => (
-                  <li key={account.email}>
-                    <strong>{account.role}</strong>: {account.email} / {account.password}
-                  </li>
-                ))}
-              </ul>
-            </details>
-        )}
       </div>
     </div>
   );

@@ -62,6 +62,7 @@ public class AdminController(SptDbContext db, AuditService audit, IEmailSender e
     {
         var rows = await db.Teachers
             .Include(t => t.User)
+            .Include(t => t.College)
             .Include(t => t.Subjects)
             .OrderBy(t => t.User.LastName).ThenBy(t => t.User.FirstName)
             .ToListAsync();
@@ -71,7 +72,8 @@ public class AdminController(SptDbContext db, AuditService audit, IEmailSender e
             id = t.Id,
             user_id = t.UserId,
             employee_id = t.EmployeeId,
-            department = t.CollegeId,
+            department = t.College != null ? t.College.Name : (t.DepartmentCode ?? "Unassigned"),   // readable name for grouping/display
+            department_id = t.CollegeId,
             email = t.User.Email,
             first_name = t.User.FirstName,
             middle_name = t.User.MiddleName,
@@ -185,6 +187,26 @@ public class AdminController(SptDbContext db, AuditService audit, IEmailSender e
             full_name = s.User is null ? null : FullName(s.User),
             is_active = s.User?.IsActive ?? true
         }));
+    }
+
+    // DELETE /api/auth/admin/students/{id}
+    // Removes a pre-loaded student ID that nobody has registered with (the "blank name / blank email" rows).
+    [HttpDelete("students/{id:int}")]
+    public async Task<IActionResult> DeleteStudentRecord(int id)
+    {
+        var student = await db.Students.FirstOrDefaultAsync(s => s.Id == id);
+        if (student is null) return NotFound(new { detail = "Student record not found." });
+        if (student.UserId != null)
+            return BadRequest(new { detail = "This student ID has an account. Delete or deactivate the account instead." });
+        if (await db.Enrollments.AnyAsync(e => e.StudentId == id))
+            return Conflict(new { detail = "This student ID has enrollments on record and cannot be removed." });
+
+        var label = student.StudentIdNo;
+        db.Students.Remove(student);
+        await db.SaveChangesAsync();
+
+        await audit.LogAsync("STUDENT_ID_REMOVE", "Student", id, $"Admin removed unregistered student ID {label}");
+        return Ok(new { detail = "Student ID removed." });
     }
 
     // POST /api/auth/admin/create-student

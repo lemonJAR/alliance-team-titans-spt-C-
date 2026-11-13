@@ -197,6 +197,7 @@ public class GradesController(SptDbContext db, AuditService audit) : ControllerB
         var enrollment = await db.Enrollments
             .Include(e => e.Offering)
             .Include(e => e.Subject)
+            .Include(e => e.Term)
             .Include(e => e.Student).ThenInclude(s => s.User)
             .FirstOrDefaultAsync(e => e.StudentId == studentId && e.SubjectId == subjectId && e.TermId == termId);
 
@@ -206,6 +207,8 @@ public class GradesController(SptDbContext db, AuditService audit) : ControllerB
             return BadRequest(new { detail = "That student is enrolled in a different section." });
         if (!await CanManage(enrollment))
             return NotFound(new { detail = "Enrollment not found." });     // don't reveal other teachers' classes
+        if (!TermIsOpenForEditing(enrollment))
+            return BadRequest(new { detail = "Grades for a past term are locked. Ask an administrator to make the change." });
 
         if (await db.Grades.AnyAsync(g => g.EnrollmentId == enrollment.Id))
             return Conflict(new { detail = "A grade already exists for this student. Edit it instead." });
@@ -246,6 +249,8 @@ public class GradesController(SptDbContext db, AuditService audit) : ControllerB
         var grade = await WithDetails().FirstOrDefaultAsync(g => g.Id == id);
         if (grade is null || !await CanManage(grade.Enrollment))
             return NotFound(new { detail = "Grade not found." });
+        if (!TermIsOpenForEditing(grade.Enrollment))
+            return BadRequest(new { detail = "Grades for a past term are locked. Ask an administrator to make the change." });
 
         var errors = new Dictionary<string, string[]>();
         var incoming = ReadGradeValues(body, errors, requireKeys: true);
@@ -288,6 +293,8 @@ public class GradesController(SptDbContext db, AuditService audit) : ControllerB
         var grade = await WithDetails().FirstOrDefaultAsync(g => g.Id == id);
         if (grade is null || !await CanManage(grade.Enrollment))
             return NotFound(new { detail = "Grade not found." });
+        if (!TermIsOpenForEditing(grade.Enrollment))
+            return BadRequest(new { detail = "Grades for a past term are locked. Ask an administrator to make the change." });
 
         var before = Snapshot(grade);
         var label = $"{grade.Enrollment.Student.StudentIdNo} / {grade.Enrollment.Subject.Code}";
@@ -342,11 +349,22 @@ public class GradesController(SptDbContext db, AuditService audit) : ControllerB
         return me != null && grade.Enrollment.StudentId == me.Id;
     }
 
+    // Professors can only change grades in the active term; admins can override any term (grade override).
+    private bool TermIsOpenForEditing(Enrollment enrollment) => IsAdmin || enrollment.Term.IsActive;
+
+    // The grade is already saved when this runs, so a notification problem must not turn the request into an error.
     private async Task Notify(Student student, string message)
     {
         if (student.UserId is not int uid) return;
-        db.Notifications.Add(new Notification { UserId = uid, Message = message, IsRead = false, CreatedAt = DateTime.UtcNow });
-        await db.SaveChangesAsync();
+        try
+        {
+            db.Notifications.Add(new Notification { UserId = uid, Message = message, IsRead = false, CreatedAt = DateTime.UtcNow });
+            await db.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Notify] Could not save notification: {ex.Message}");
+        }
     }
 
     private GradeHistory History(int gradeId, string action, string? oldValues, string? newValues) => new()

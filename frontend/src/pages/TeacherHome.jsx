@@ -278,6 +278,16 @@ function fmtGrade(value) {
   return Number.isNaN(n) ? value : n.toFixed(2);
 }
 
+// Turns an API error into one readable sentence (the API sends { detail } or { field: [messages] }).
+function apiErrorText(err) {
+  const data = err.response?.data;
+  if (!data) return err.message;
+  if (typeof data.detail === 'string') return data.detail;
+  if (typeof data.error === 'string') return data.error;
+  const parts = Object.entries(data).map(([field, msgs]) => `${field}: ${[].concat(msgs).join(' ')}`);
+  return parts.length ? parts.join('\n') : err.message;
+}
+
 export default function TeacherHome() {
   const navigate = useNavigate();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -379,6 +389,8 @@ export default function TeacherHome() {
       const numeric = Number(value);
       if (Number.isNaN(numeric)) next[key] = 'Must be a number.';
       else if (numeric < 1 || numeric > 5) next[key] = 'Must be between 1.00 and 5.00.';
+      // Same rule as the API (GradeRules.cs): quarter steps only, so 1.37 is caught here instead of failing on save.
+      else if (Math.abs(((numeric - 1) / 0.25) - Math.round((numeric - 1) / 0.25)) > 1e-9) next[key] = 'Use steps of 0.25 (e.g. 1.25, 2.50).';
     }
     return next;
   }
@@ -410,7 +422,7 @@ export default function TeacherHome() {
       await selectOffering(selected);
     } catch (err) {
       console.error(err);
-      alert('Failed to save grade: ' + (err.response?.data ? JSON.stringify(err.response.data) : err.message));
+      alert('Failed to save grade: ' + apiErrorText(err));
     } finally {
       setSavingId(null);
     }
@@ -424,7 +436,7 @@ export default function TeacherHome() {
       await selectOffering(selected);
     } catch (err) {
       console.error(err);
-      alert('Failed to delete grade: ' + (err.response?.data ? JSON.stringify(err.response.data) : err.message));
+      alert('Failed to delete grade: ' + apiErrorText(err));
     }
   }
 

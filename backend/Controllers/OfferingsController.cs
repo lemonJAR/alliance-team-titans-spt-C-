@@ -178,4 +178,4 @@ public class OfferingsController(SptDbContext db, AuditService audit) : Controll
         var userId = User.UserId();
         return userId is null ? null : await db.Teachers.FirstOrDefaultAsync(t => t.UserId == userId);
     }
-}s
+}

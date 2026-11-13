@@ -47,7 +47,7 @@ public class AuthController(SptDbContext db, TokenService tokens, AuditService a
         }
 
         if (user.IsActive == false)
-            return StatusCode(403, new { detail = "This account has been deactivated. Contact the administrator." });
+            return StatusCode(403, new { detail = "This account is not active. It may be waiting for administrator approval or has been deactivated. Contact the administrator." });
 
         if (!user.EmailVerified)
             return StatusCode(403, new { detail = "Please verify your email before logging in." });
@@ -94,11 +94,6 @@ public class AuthController(SptDbContext db, TokenService tokens, AuditService a
         await audit.LogAsync("PROFILE_UPDATE", "User", user.Id, "Updated own name");
         return Ok(ToDto(user));
     }
-
-    // GET /api/auth/admin/ping  - temporary, only to prove role protection works. Delete later.
-    [HttpGet("admin/ping")]
-    [Authorize(Roles = Roles.Admin)]
-    public IActionResult AdminPing() => Ok(new { detail = "pong - you are an admin" });
 
     // ───────── helpers ─────────
     private async Task<User?> LoadCurrentUser()

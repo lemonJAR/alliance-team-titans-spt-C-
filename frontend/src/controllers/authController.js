@@ -1,13 +1,7 @@
 import { login as loginRequest, logout as logoutRequest } from "../services/api";
-import { clearSession, getSession, saveSession } from "../models/authSession";
-import { findDemoAccount } from "../models/demoAccounts";
+import { clearSession, getSession } from "../models/authSession";
 
 export async function signIn(credentials) {
-  const demoAccount = findDemoAccount(credentials.email, credentials.password);
-  if (demoAccount) {
-    return saveSession(demoAccount);
-  }
-
   return loginRequest(credentials);
 }
 

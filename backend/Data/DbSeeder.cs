@@ -28,7 +28,7 @@ public static class DbSeeder
             LastName = "Admin",
             IsActive = true,
             EmailVerified = true,
-            DateJoined = DateTime.Now
+            DateJoined = DateTime.UtcNow
         });
         await db.SaveChangesAsync();
         Console.WriteLine($"[Seed] Admin account created: {email}");

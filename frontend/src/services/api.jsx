@@ -10,6 +10,15 @@ const normalizeSubjectRecords = (data) => (data || []).map((record) => ({
   subjects: record.subjects ?? [],
 }));
 
+// The teachers API sends subjects as objects { id, code, name }. The faculty tables render plain text,
+// so turn each one into a label (rendering an object inside JSX crashes React) and keep the originals.
+const normalizeTeacherRecords = (data) => (data || []).map((record) => ({
+  ...record,
+  subject_items: record.subjects ?? [],
+  subjects: (record.subjects ?? []).map((sub) =>
+    typeof sub === 'string' ? sub : [sub.code, sub.name].filter(Boolean).join(' - ')),
+}));
+
 api.interceptors.request.use((config) => {
   const token = getSession()?.token;
   if (token) config.headers.Authorization = `Bearer ${token}`;
@@ -124,7 +133,7 @@ export const adminCreateTeacher       = (payload)     => {
 };
 export const fetchTeachers            = async () => {
   const response = await api.get('/auth/admin/teachers/');
-  return { ...response, data: normalizeSubjectRecords(response.data) };
+  return { ...response, data: normalizeTeacherRecords(response.data) };
 };
 export const updateTeacherSubjects   = (id, payload) => api.patch(`/auth/admin/teachers/${id}/`, payload);
 export const adminCreateStudent       = (payload)     => api.post('/auth/admin/create-student/', payload);
@@ -132,6 +141,7 @@ export const fetchStudents            = ()            => api.get('/auth/admin/st
 export const fetchAuditLogs           = (params)      => api.get('/auth/admin/audit-logs/', { params });
 export const adminUpdateUser          = (userId, payload) => api.patch(`/auth/admin/users/${userId}/`, payload);
 export const adminDeleteUser          = (userId)      => api.delete(`/auth/admin/users/${userId}/`);
+export const adminDeleteStudentRecord = (studentId)   => api.delete(`/auth/admin/students/${studentId}/`);
 
 // ── SYSTEM: Notifications ───────────────────────────────────────────────────
 export const fetchNotifications       = (params)      => api.get('/auth/notifications/', { params });

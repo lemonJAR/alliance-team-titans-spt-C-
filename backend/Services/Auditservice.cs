@@ -11,21 +11,29 @@ public class AuditService(SptDbContext db, IHttpContextAccessor http)
         string action, string? entity = null, int? entityId = null, string? details = null,
         int? actorId = null, string? email = null, string? role = null)
     {
-        var ctx = http.HttpContext;
-
-        db.AuditLogs.Add(new AuditLog
+        // An audit failure must never turn a successful request (data already saved) into a 500.
+        try
         {
-            ActorId = actorId ?? ctx?.User.UserId(),
-            UserEmail = email ?? ctx?.User.UserEmail(),
-            ActorType = role ?? ctx?.User.UserRole(),
-            Action = action,
-            Entity = entity,
-            EntityId = entityId,
-            Details = details,
-            IpAddress = ctx?.Connection.RemoteIpAddress?.ToString(),
-            CreatedAt = DateTime.Now
-        });
+            var ctx = http.HttpContext;
 
-        await db.SaveChangesAsync();
+            db.AuditLogs.Add(new AuditLog
+            {
+                ActorId = actorId ?? ctx?.User.UserId(),
+                UserEmail = email ?? ctx?.User.UserEmail(),
+                ActorType = role ?? ctx?.User.UserRole(),
+                Action = action,
+                Entity = entity,
+                EntityId = entityId,
+                Details = details,
+                IpAddress = ctx?.Connection.RemoteIpAddress?.ToString(),
+                CreatedAt = DateTime.UtcNow      // all timestamps in the system are UTC
+            });
+
+            await db.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Audit] Could not write audit log '{action}': {ex.Message}");
+        }
     }
 }

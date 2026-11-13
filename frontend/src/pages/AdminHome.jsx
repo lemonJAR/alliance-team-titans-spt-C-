@@ -13,7 +13,7 @@ import {
   getEnrollmentQueue, approveRejectEnrollments,
   fetchGrades, updateGrade, deleteGrade,
   fetchGradeReport, exportGradeReportCsv, exportGradeReportExcel,
-  fetchAuditLogs, adminUpdateUser, adminDeleteUser,
+  fetchAuditLogs, adminUpdateUser, adminDeleteUser, adminDeleteStudentRecord,
   fetchNotifications,
 } from '../controllers/adminController';
 import { signOut } from '../controllers/authController';
@@ -2545,6 +2545,16 @@ function UserManagementTab() {
     }
   }
 
+  async function removeStudentId(row) {
+    if (!confirm(`Remove the unregistered student ID ${row.student_id}? Nobody can sign up with it afterwards.`)) return;
+    try {
+      await adminDeleteStudentRecord(row.id);
+      await reloadUsers();
+    } catch (err) {
+      alert('Failed to remove student ID: ' + (err.response?.data?.detail || err.message));
+    }
+  }
+
   return (
     <>
       <div>
@@ -2725,31 +2735,34 @@ function UserManagementTab() {
                   <tbody>
                     {visibleUsers.map((st) => (
                       <tr key={st.id}>
-                        <td style={s.td}>{st.full_name}</td>
-                        <td style={s.td}>{st.email}</td>
+                        <td style={s.td}>{st.registered ? st.full_name : <em style={{ color: c.muted }}>Not registered yet</em>}</td>
+                        <td style={s.td}>{st.registered ? st.email : '--'}</td>
                         <td style={s.td}>{st.student_id}</td>
                         <td style={s.td}>{st.program_name || '--'}</td>
-                        <td style={s.td}>{st.is_active ? 'Active' : 'Inactive'}</td>
+                        <td style={s.td}>{!st.registered ? 'Not registered' : st.is_active ? 'Active' : 'Inactive'}</td>
                         <td style={{ ...(s.td || {}), paddingLeft: 24 }}>
                           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                            <button
-                              style={s.submitBtn(false)}
-                              onClick={() => editUser(st)}
-                            >
-                              Edit
-                            </button>
-                            <button
-                              style={s.submitBtn(false)}
-                              onClick={() => toggleActive(st.user_id, st.is_active)}
-                            >
-                              {st.is_active ? 'Deactivate' : 'Activate'}
-                            </button>
-                            <button
-                              style={{ ...s.submitBtn(false), borderColor: c.danger, color: c.danger }}
-                              onClick={() => deleteUser(st.user_id, `${st.full_name} (${st.email})`)}
-                            >
-                              Delete
-                            </button>
+                            {st.registered ? (
+                              <>
+                                <button style={s.submitBtn(false)} onClick={() => editUser(st)}>Edit</button>
+                                <button style={s.submitBtn(false)} onClick={() => toggleActive(st.user_id, st.is_active)}>
+                                  {st.is_active ? 'Deactivate' : 'Activate'}
+                                </button>
+                                <button
+                                  style={{ ...s.submitBtn(false), borderColor: c.danger, color: c.danger }}
+                                  onClick={() => deleteUser(st.user_id, `${st.full_name} (${st.email})`)}
+                                >
+                                  Delete account
+                                </button>
+                              </>
+                            ) : (
+                              <button
+                                style={{ ...s.submitBtn(false), borderColor: c.danger, color: c.danger }}
+                                onClick={() => removeStudentId(st)}
+                              >
+                                Remove ID
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
