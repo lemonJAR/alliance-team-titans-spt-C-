@@ -472,7 +472,7 @@ export default function TeacherHome() {
           </button>
 
           {!sidebarCollapsed && <div style={shell.navLabel}>My Offerings</div>}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: '56vh', overflowY: 'auto', paddingRight: 2 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: '1 1 auto', minHeight: 0, overflowY: 'auto', paddingRight: 2 }}>
             {offerings.length === 0 && <div style={{ ...shell.helperText, padding: '0 10px' }}>No assigned offerings yet.</div>}
             {offerings.map((off) => (
               <button className="sidebar-offering-action" key={off.id} title={`${off.offer_code} · ${off.subject_code}`} onClick={() => selectOffering(off)} style={shell.offeringBtn(selected?.id === off.id)}>

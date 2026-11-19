@@ -86,4 +86,9 @@ app.MapControllers();
 
 await DbSeeder.SeedAdminAsync(app.Services);
 
+// Demo/test data (colleges, professors, students, offerings, grades, notifications, audit logs).
+// Off unless "Seed:DemoData" is true - set it in appsettings.Development.json, never in production.
+if (app.Configuration.GetValue<bool>("Seed:DemoData"))
+    await DemoSeeder.SeedAsync(app.Services);
+
 app.Run();

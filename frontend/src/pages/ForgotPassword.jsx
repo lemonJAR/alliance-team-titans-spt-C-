@@ -33,6 +33,7 @@ export default function ForgotPassword() {
             <label className="login-label">Email</label>
             <div className="login-input">
               <input
+                className="login-text"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}

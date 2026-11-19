@@ -291,8 +291,20 @@
 
 .dashboard-sidebar {
   transition: width 0.2s ease;
-  overflow-x: hidden;
   gap: 8px !important;
+
+  /* Sticky sidebar: stays pinned to the viewport while the page content scrolls,
+     so the Log Out button (pushed to the bottom with margin-top:auto) is always visible. */
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+  box-sizing: border-box;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0 !important;
+  overflow-x: hidden;
+  overflow-y: auto; /* safety net only: scrolls inside the sidebar on very short screens */
+  scrollbar-width: thin;
 }
 
 .dashboard-sidebar > button:first-child {
