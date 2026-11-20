@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { register, verifyStudent } from "../controllers/accountController";
+import Icon from "../components/Icons";
 import Logo from "../assets/Logo.png";
 
 const initialForm = {
@@ -86,11 +87,8 @@ const handleSubmit = async () => {
       <div className="login-shell">
         <div className="card signup-card" style={{ textAlign: "center" }}>
           <img className="brand-logo" src={Logo} alt="Alliance Team Titans logo" />
-          <div className="status-icon success" style={{ margin: "0 auto 1.5rem" }}>
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#5C6E42" strokeWidth="2" strokeLinecap="round">
-              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9-2-2-2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-              <polyline points="22,6 12,13 2,6"/>
-            </svg>
+          <div className="status-icon success" >
+            <Icon name="mail" size={26} style={{ color: "var(--app-success)" }} />
           </div>
           <div className="eyebrow">Almost there</div>
           <div className="card-title">Check your inbox<i>.</i></div>
@@ -127,12 +125,12 @@ const handleSubmit = async () => {
                   <button type="button"
                     className={`role-btn ${form.role === "STUDENT" ? "role-active" : ""}`}
                     onClick={() => set("role", "STUDENT")}>
-                    🎒 Student
+                    Student
                   </button>
                   <button type="button"
                     className={`role-btn ${form.role === "PROFESSOR" ? "role-active" : ""}`}
                     onClick={() => set("role", "PROFESSOR")}>
-                    📖 Teacher
+                    Teacher
                   </button>
                 </div>
               </div>
@@ -169,7 +167,7 @@ const handleSubmit = async () => {
               </Field>
 
               {form.role === "STUDENT" && (
-                <Field label="Student ID:" error={errors.student_id}>
+                <Field label="Student ID" error={errors.student_id}>
                     <input
                     className={`finput ${errors.student_id ? "finput-error" : ""}`}
                     type="text"
@@ -180,7 +178,7 @@ const handleSubmit = async () => {
                 )}
 
                 {form.role === "PROFESSOR" && (
-                <Field label="Employee ID:" error={errors.employee_id}>
+                <Field label="Employee ID" error={errors.employee_id}>
                     <input
                     className={`finput ${errors.employee_id ? "finput-error" : ""}`}
                     type="text"

@@ -1,5 +1,4 @@
 import { createBrowserRouter, Navigate, RouterProvider } from "react-router-dom";
-import AuthLanding from "./pages/AuthLanding";
 import Login from "./pages/Login";
 import SignUp from "./pages/SignUp";
 import VerifyEmail from "./pages/VerifyEmail";
@@ -15,7 +14,7 @@ import { ROLES } from "./models/roles";
 const router = createBrowserRouter([
   { 
     path: "/",
-    element: <AuthLanding />
+    element: <Navigate to="/login" replace />
   },
   { 
     path: "/login",

@@ -18,43 +18,12 @@ import {
   markNotificationsRead,
 } from '../controllers/studentController';
 import { signOut } from '../controllers/authController';
-import Logo from '../assets/Logo.png';
+import DashboardLayout from '../components/DashboardLayout';
+import { notify } from '../components/toastBus';
+import { PageHeader, PanelTitle, Field, StatCard, SectionHeader, StatusBadge, Pagination, NotificationBell } from '../components/ui';
 
 // Styles
 const s = {
-  root: {
-    display: 'flex', minHeight: '100vh',
-    fontFamily: "'DM Sans', 'Segoe UI', sans-serif",
-    background: 'var(--app-bg-gradient)', color: 'var(--app-text)',
-  },
-  sidebar: {
-    width: 220, minHeight: '100vh', background: 'var(--app-card)',
-    borderRight: '1px solid var(--app-border)', display: 'flex',
-    flexDirection: 'column', padding: '28px 16px', gap: 6, flexShrink: 0,
-  },
-  logo: {
-    fontFamily: 'monospace', fontSize: 16, color: 'var(--app-accent)',
-    display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden', whiteSpace: 'nowrap',
-    padding: '10px 14px', marginBottom: 6,
-  },
-  logoImg: { width: 28, height: 28, objectFit: 'contain' },
-  logoDot: { width: 8, height: 8, background: 'var(--app-accent)', borderRadius: '50%', boxShadow: '0 0 8px var(--app-accent)', flexShrink: 0 },
-  navLabel: {
-    fontSize: 10, fontWeight: 600, letterSpacing: '0.12em', color: 'var(--app-muted)',
-    textTransform: 'uppercase', padding: '0 10px', margin: '12px 0 4px',
-  },
-  pillBtn: (active) => ({
-    display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px',
-    borderRadius: 50, border: active ? '1px solid var(--app-accent)' : '1px solid transparent',
-    background: active ? 'var(--app-accent-bg)' : 'transparent',
-    color: active ? 'var(--app-accent)' : 'var(--app-muted)', fontSize: 13.5, fontWeight: 500,
-    cursor: 'pointer', textAlign: 'left', width: '100%', fontFamily: 'inherit', transition: 'all 0.18s',
-  }),
-  sidebarFooter: {
-    marginTop: 'auto', paddingTop: 16, borderTop: '1px solid var(--app-border)',
-    display: 'flex', flexDirection: 'column', gap: 6,
-  },
-  main: { flex: 1, overflowY: 'auto', padding: '36px 40px', display: 'flex', flexDirection: 'column', gap: 24 },
   pageTitle: { fontSize: 26, fontWeight: 600, letterSpacing: '-0.01em' },
   pageSub:   { fontSize: 13, color: 'var(--app-muted)', marginTop: 4 },
   panels:    { display: 'flex', gap: 20, flexWrap: 'wrap' },
@@ -69,16 +38,6 @@ const s = {
     padding: '10px 14px', borderRadius: 999, border: active ? '1px solid var(--app-accent)' : '1px solid transparent',
     background: active ? 'var(--app-accent-bg)' : 'transparent', color: active ? 'var(--app-accent)' : 'var(--app-muted)',
     fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.18s', whiteSpace: 'nowrap', flexShrink: 0,
-  }),
-  paginationButton: (disabled) => ({
-    padding: '6px 10px',
-    borderRadius: 7,
-    border: '1px solid var(--app-border)',
-    background: disabled ? 'var(--app-panel)' : 'var(--app-card)',
-    color: disabled ? 'var(--app-muted)' : 'var(--app-text)',
-    fontSize: 12,
-    cursor: disabled ? 'not-allowed' : 'pointer',
-    fontFamily: 'inherit',
   }),
   tabPanel: {
     padding: 20,
@@ -105,89 +64,12 @@ const s = {
     fontSize: 13, fontWeight: 600, padding: '10px 16px', borderRadius: 7,
     cursor: disabled ? 'not-allowed' : 'pointer', fontFamily: 'inherit', marginTop: 2,
   }),
-  notifButton: {
-    position: 'relative',
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    border: '1px solid var(--app-border)',
-    background: 'var(--app-panel)',
-    color: 'var(--app-text)',
-    cursor: 'pointer',
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: 18,
-  },
-  notifBadge: {
-    position: 'absolute',
-    top: -6,
-    right: -6,
-    minWidth: 18,
-    height: 18,
-    borderRadius: 999,
-    background: 'var(--app-danger)',
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: 700,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    border: '2px solid var(--app-card)',
-  },
-  notifPanel: {
-    position: 'absolute',
-    top: 46,
-    right: 0,
-    width: 320,
-    maxHeight: 380,
-    overflow: 'auto',
-    border: '1px solid var(--app-border)',
-    background: 'var(--app-card)',
-    borderRadius: 12,
-    boxShadow: '0 18px 40px rgba(0,0,0,0.18)',
-    zIndex: 20,
-  },
-  notifHeader: {
-    padding: '12px 14px',
-    borderBottom: '1px solid var(--app-border)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
-  notifTitle: {
-    fontSize: 14,
-    letterSpacing: '0.12em',
-    textTransform: 'uppercase',
-    fontWeight: 700,
-    color: 'var(--app-accent)',
-  },
-  notifItem: {
-    padding: '10px 14px',
-    borderBottom: '1px solid var(--app-border)',
-    display: 'flex',
-    gap: 10,
-  },
-  notifDot: {
-    width: 8,
-    height: 8,
-    borderRadius: '50%',
-    marginTop: 6,
-    flexShrink: 0,
-    background: 'var(--app-success)',
-  },
-  notifTime: { fontSize: 10, color: 'var(--app-muted)', marginTop: 4 },
-  statCard: {
-    background: 'var(--app-panel)', border: '1px solid var(--app-border)', borderRadius: 8,
-    padding: '14px 18px', flex: 1, minWidth: 120, display: 'flex', flexDirection: 'column', gap: 4,
-  },
   comingSoon: {
     display: 'flex', flexDirection: 'column', alignItems: 'center',
     justifyContent: 'center', minHeight: 260, gap: 12, color: 'var(--app-muted)', textAlign: 'center',
   },
-  th: { padding: '8px 14px', textAlign: 'center', fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--app-muted)', borderBottom: '1px solid var(--app-border)', borderRight: '1px solid rgba(148, 163, 184, 0.18)' },
-  td: { padding: '10px 14px', borderBottom: '1px solid var(--app-border)', borderRight: '1px solid rgba(148, 163, 184, 0.12)', textAlign: 'left' },
+  th: { padding: '8px 14px', textAlign: 'center', fontSize: 12, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--app-muted)', borderBottom: '1px solid var(--app-border)' },
+  td: { padding: '10px 14px', borderBottom: '1px solid var(--app-border)', textAlign: 'left' },
   tableScroll: {
     maxHeight: 'calc(100vh - 360px)',
     overflowY: 'auto',
@@ -195,66 +77,8 @@ const s = {
   },
 };
 
-const STATUS_STYLE = {
-  PENDING:   { bg: 'var(--app-warning-bg)', border: 'var(--app-warning-border)', color: 'var(--app-warning)' },
-  APPROVED:  { bg: 'var(--app-info-bg)', border: 'var(--app-info-border)', color: 'var(--app-info)' },
-  ENROLLED:  { bg: 'var(--app-success-bg)', border: 'var(--app-success-border)', color: 'var(--app-success)' },
-  DROPPED:   { bg: 'var(--app-danger-bg)', border: 'var(--app-danger-border)', color: 'var(--app-danger)' },
-  REJECTED:  { bg: 'var(--app-danger-bg)', border: 'var(--app-danger-border)', color: 'var(--app-danger)' },
-  WITHDRAWN: { bg: 'var(--app-panel)', border: 'var(--app-border)', color: 'var(--app-muted)' },
-  COMPLETED: { bg: 'var(--app-success-bg)', border: 'var(--app-success-border)', color: 'var(--app-success)' },
-};
-
-function StatusBadge({ status }) {
-  const st = STATUS_STYLE[status] || STATUS_STYLE.PENDING;
-  return (
-    <span style={{ background: st.bg, border: `1px solid ${st.border}`, color: st.color, borderRadius: 4, padding: '2px 9px', fontSize: 11, fontWeight: 600 }}>
-      {status}
-    </span>
-  );
-}
-
-function PanelTitle({ children }) {
-  return (
-    <div style={s.panelTitle}>
-      <span style={{ width: 6, height: 6, background: 'var(--app-accent)', borderRadius: '50%', opacity: 0.7, display: 'inline-block' }} />
-      {children}
-    </div>
-  );
-}
-
-function Field({ label, children }) {
-  return <div><label style={s.label}>{label}</label>{children}</div>;
-}
-
-function StatCard({ label, value, sub, accent }) {
-  return (
-    <div style={s.statCard}>
-      <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--app-muted)' }}>{label}</div>
-      <div style={{ fontSize: 22, fontWeight: 700, color: accent || 'var(--app-text)', letterSpacing: '-0.01em' }}>{value ?? '—'}</div>
-      {sub && <div style={{ fontSize: 11, color: 'var(--app-muted)' }}>{sub}</div>}
-    </div>
-  );
-}
-
-function SectionHeader({ title, right }) {
-  return (
-    <div style={{
-      padding: '10px 20px', background: 'var(--app-accent-bg)', borderBottom: '1px solid var(--app-border)',
-      fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
-      color: 'var(--app-accent)', display: 'flex', alignItems: 'center', gap: 6,
-    }}>
-      <span style={{ width: 6, height: 6, background: 'var(--app-accent)', borderRadius: '50%', display: 'inline-block' }} />
-      {title}
-      {right && <span style={{ marginLeft: 'auto', fontWeight: 400, color: 'var(--app-muted)', fontSize: 11 }}>{right}</span>}
-    </div>
-  );
-}
-
-
 function ProfileTab() {
   const [profile,    setProfile]   = useState(null);
-  const [prospectus, setProspectus] = useState([]);
   const [form,       setForm]      = useState({ first_name: '', last_name: '', middle_name: '' });
   const [pwForm,     setPwForm]    = useState({ current_password: '', new_password: '', confirm_password: '' });
   const [loading,    setLoading]   = useState(false);
@@ -270,15 +94,7 @@ function ProfileTab() {
         setForm({ first_name: data.first_name || '', last_name: data.last_name || '', middle_name: data.middle_name || '' });
       })
       .catch(console.error);
-
-    getMyProspectus()
-      .then(({ data }) => setProspectus(data))
-      .catch(console.error);
   }, []);
-
-  const enrolledRows  = prospectus.filter((d) => d.request_status === 'ENROLLED');
-  const enrolledCount = enrolledRows.length;
-  const enrolledUnits = enrolledRows.reduce((sum, d) => sum + (d.units || 0), 0);
 
   async function handleProfileSave(e) {
     e.preventDefault();
@@ -286,42 +102,33 @@ function ProfileTab() {
     try {
       const { data } = await updateStudentProfile({ first_name: form.first_name, last_name: form.last_name, middle_name: form.middle_name });
       setProfile((prev) => ({ ...prev, ...data }));
-      alert('OK: Profile updated.');
+      notify('OK: Profile updated.');
     } catch (err) {
-      alert('Error: ' + (err.response?.data ? JSON.stringify(err.response.data) : err.message));
+      notify('Error: ' + (err.response?.data ? JSON.stringify(err.response.data) : err.message));
     } finally { setLoading(false); }
   }
 
   async function handlePasswordChange(e) {
     e.preventDefault();
-    if (pwForm.new_password !== pwForm.confirm_password) { alert('New passwords do not match.'); return; }
+    if (pwForm.new_password !== pwForm.confirm_password) { notify('New passwords do not match.'); return; }
     setPwLoading(true);
     try {
       await changePassword({ current_password: pwForm.current_password, new_password: pwForm.new_password });
-      alert('OK: Password changed.');
+      notify('OK: Password changed.');
       setPwForm({ current_password: '', new_password: '', confirm_password: '' });
     } catch (err) {
-      alert('Error: ' + (err.response?.data ? JSON.stringify(err.response.data) : err.message));
+      notify('Error: ' + (err.response?.data ? JSON.stringify(err.response.data) : err.message));
     } finally { setPwLoading(false); }
   }
 
   return (
     <>
-      <div>
-        <div style={s.pageTitle}>My Account</div>
-        <div style={s.pageSub}>Manage your personal information and security settings.</div>
-      </div>
+      <PageHeader title="My Account" subtitle="Manage your personal information and security settings." />
 
       <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-        <div style={s.statCard}>
-          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--app-muted)' }}>Student ID</div>
-          <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--app-success)', fontFamily: 'monospace' }}>{profile?.student_id || '--'}</div>
-        </div>
-        <StatCard label="Program"    value={profile?.program_code || '--'} sub={profile?.program_name}           accent="var(--app-text)" />
-        <StatCard label="Year Level" value={profile?.year_level ? `Year ${profile.year_level}` : '--'}           accent="var(--app-text)" />
-        <StatCard label="College"    value={profile?.college_name || '--'}                                        accent="var(--app-text)" />
-        <StatCard label="Enrolled"   value={enrolledCount}                 sub="subjects this term"              accent="var(--app-success)" />
-        <StatCard label="Units"      value={enrolledUnits}                 sub="enrolled units"                  accent="var(--app-success)" />
+        <StatCard label="Student ID" value={profile?.student_id || '--'} />
+        <StatCard label="Program" value={profile?.program_code || '--'} sub={[profile?.program_name, profile?.year_level ? `Year ${profile.year_level}` : null].filter(Boolean).join(' · ')} />
+        <StatCard label="College" value={profile?.college_name || '--'} />
       </div>
 
       <div style={s.panels}>
@@ -402,7 +209,6 @@ function ProspectusTab() {
   useEffect(() => { queueMicrotask(() => load()); }, [load]);
 
   const total         = rows.reduce((sum, d) => sum + (d.units || 0), 0);
-  const enrolledCount = rows.filter((r) => r.request_status === 'ENROLLED').length;
   const pendingCount  = rows.filter((r) => r.request_status === 'PENDING').length;
   const approvedCount = rows.filter((r) => r.request_status === 'APPROVED').length;
 
@@ -428,27 +234,23 @@ function ProspectusTab() {
         data.requested?.length ? `OK: Requested: ${data.requested.join(', ')}` : null,
         data.errors?.length    ? `Errors:\n${data.errors.join('\n')}`           : null,
       ].filter(Boolean).join('\n\n');
-      alert(msg || 'OK: Done.');
+      notify(msg || 'OK: Done.');
       setSelectedSubjectIds([]);
       await load();
     } catch (err) {
-      alert('Error: ' + (err.response?.data ? JSON.stringify(err.response.data) : err.message));
+      notify('Error: ' + (err.response?.data ? JSON.stringify(err.response.data) : err.message));
     } finally { setSubmitting(false); }
   }
 
   return (
     <>
-      <div>
-        <div style={s.pageTitle}>My Prospectus</div>
-        <div style={s.pageSub}>Request subjects for this semester. Submit your requests and wait for admin approval.</div>
-      </div>
+      <PageHeader title="My Prospectus" subtitle="Request subjects for this semester. Submit your requests and wait for admin approval." />
 
       <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
         <StatCard label="Subjects"  value={rows.length}    sub="this semester"  />
         <StatCard label="Units"     value={total}          sub="total this sem"  accent="var(--app-success)" />
         <StatCard label="Pending"   value={pendingCount}   sub="awaiting admin"  accent="var(--app-warning)" />
         <StatCard label="Approved"  value={approvedCount}  sub="pick schedule"   accent="var(--app-info)" />
-        <StatCard label="Enrolled"  value={enrolledCount}  sub="confirmed"       accent="var(--app-success)" />
       </div>
 
       {loading && (
@@ -588,28 +390,26 @@ function EnrollmentTab() {
     });
   }, [reload]);
 
+  const enrolledCount = prospectus.filter((d) => d.request_status === 'ENROLLED').length;
+
   async function handleSelectSchedule(enrollmentId, offeringId) {
     setScheduling((p) => ({ ...p, [enrollmentId]: true }));
     try {
       const { data } = await selectSchedule(enrollmentId, offeringId);
-      alert(`OK: Enrolled in ${data.offer_code} - ${data.schedule}${data.room ? ` @ ${data.room}` : ''}`);
+      notify(`OK: Enrolled in ${data.offer_code} - ${data.schedule}${data.room ? ` @ ${data.room}` : ''}`);
       setExpandedEnr(null);
       await reload();
     } catch (err) {
-      alert('Error: ' + (err.response?.data ? JSON.stringify(err.response.data) : err.message));
+      notify('Error: ' + (err.response?.data ? JSON.stringify(err.response.data) : err.message));
     } finally { setScheduling((p) => ({ ...p, [enrollmentId]: false })); }
   }
 
-  const enrolledCount = prospectus.filter((d) => d.request_status === 'ENROLLED').length;
 
   return (
     <>
-      <div>
-        <div style={s.pageTitle}>Enrollment</div>
-        <div style={s.pageSub}>
+      <PageHeader title="Enrollment" subtitle="
           {activeTerm ? `Select schedules for your approved subjects. Active term: ${activeTerm.school_year} - Semester ${activeTerm.semester}` : 'No active enrollment period. Check back later.'}
-        </div>
-      </div>
+        " />
 
       <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
         <StatCard label="Term"          value={activeTerm ? activeTerm.school_year : 'Closed'} sub={activeTerm ? `Semester ${activeTerm.semester}` : 'check back later'} accent={activeTerm ? 'var(--app-success)' : 'var(--app-muted)'} />
@@ -725,43 +525,6 @@ function EmptyGradeState({ message }) {
       padding: 24,
     }}>
       {message}
-    </div>
-  );
-}
-
-function Pagination({ page, totalPages, onChange }) {
-  if (totalPages <= 1) return null;
-
-  return (
-    <div style={{
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: 12,
-      padding: '12px 16px',
-      borderTop: '1px solid var(--app-border)',
-      color: 'var(--app-muted)',
-      fontSize: 12,
-    }}>
-      <span>Page {page} of {totalPages}</span>
-      <div style={{ display: 'flex', gap: 6 }}>
-        <button
-          type="button"
-          disabled={page === 1}
-          onClick={() => onChange(page - 1)}
-          style={s.paginationButton(page === 1)}
-        >
-          Previous
-        </button>
-        <button
-          type="button"
-          disabled={page === totalPages}
-          onClick={() => onChange(page + 1)}
-          style={s.paginationButton(page === totalPages)}
-        >
-          Next
-        </button>
-      </div>
     </div>
   );
 }
@@ -905,7 +668,7 @@ function GradesTab() {
       window.URL.revokeObjectURL(url);
     } catch (err) {
       console.error(err);
-      alert('Failed to download grades CSV.');
+      notify('Failed to download grades CSV.');
     } finally {
       setExporting(false);
       setExportOpen(false);
@@ -949,7 +712,7 @@ function GradesTab() {
       doc.save('grades.pdf');
     } catch (err) {
       console.error(err);
-      alert('Failed to download grades PDF.');
+      notify('Failed to download grades PDF.');
     } finally {
       setExportOpen(false);
     }
@@ -1464,33 +1227,16 @@ function GradesTab() {
 // MAIN
 
 const TABS = [
-  { key: 'profile',    label: 'Profile / Account', icon: '👤' },
-  { key: 'prospectus', label: 'Prospectus',         icon: '📋' },
-  { key: 'enrollment', label: 'Enrollment',         icon: '📝' },
-  { key: 'grades',     label: 'Grades',             icon: '📊' },
+  { key: 'profile',    label: 'Profile / Account', icon: 'user' },
+  { key: 'prospectus', label: 'Prospectus',         icon: 'list' },
+  { key: 'enrollment', label: 'Enrollment',         icon: 'pencil' },
+  { key: 'grades',     label: 'Grades',             icon: 'chart' },
 ];
 
 export default function StudentHome() {
   const navigate = useNavigate();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [activeTab, setActiveTab] = useState('profile');
-  const [profile,   setProfile]   = useState(null);
-  const [notifications, setNotifications] = useState([]);
-  const [notifOpen, setNotifOpen] = useState(false);
-  const [notifLoading, setNotifLoading] = useState(true);
-  const notifRef = useRef(null);
-
-  const loadNotifications = useCallback(async () => {
-    setNotifLoading(true);
-    try {
-      const { data } = await fetchNotifications();
-      setNotifications(data || []);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setNotifLoading(false);
-    }
-  }, []);
+  const [profile, setProfile] = useState(null);
 
   useEffect(() => {
     getStudentProfile()
@@ -1498,143 +1244,37 @@ export default function StudentHome() {
       .catch(console.error);
   }, []);
 
-  useEffect(() => {
-    function handleOutsideClick(event) {
-      if (notifRef.current && !notifRef.current.contains(event.target)) {
-        setNotifOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handleOutsideClick);
-    return () => document.removeEventListener('mousedown', handleOutsideClick);
-  }, []);
-
-  const unreadCount = notifications.filter((n) => !n.is_read).length;
-
-  async function handleMarkAllRead() {
-    try {
-      await markNotificationsRead({ mark_all: true });
-      setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
-  function formatNotifTime(value) {
-    if (!value) return '';
-    const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? '' : date.toLocaleString();
-  }
-
   async function handleLogout() {
     try {
       await signOut();
     } finally {
-      navigate('/');
+      navigate('/login');
     }
   }
 
   return (
-    <div style={s.root}>
-      <div className={`dashboard-sidebar${sidebarCollapsed ? ' collapsed' : ''}`} style={{ ...s.sidebar, width: sidebarCollapsed ? 72 : 220 }}>
-        <button type="button" aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} onClick={() => setSidebarCollapsed((value) => !value)} style={{ ...s.logo, justifyContent: sidebarCollapsed ? 'center' : 'flex-start', padding: sidebarCollapsed ? '10px 0' : '10px 14px', width: '100%', border: 0, background: 'transparent', cursor: 'pointer' }}>
-          <img src={Logo} alt="Alliance Team Titans logo" style={s.logoImg} />
-          {!sidebarCollapsed && <span>STUDENT PORTAL</span>}
-        </button>
-        {!sidebarCollapsed && <div style={s.navLabel}>Navigation</div>}
-        {TABS.map((tab) => (
-          <button className="sidebar-nav-action" key={tab.key} title={tab.label} aria-label={tab.label} style={{ ...s.pillBtn(activeTab === tab.key), justifyContent: sidebarCollapsed ? 'center' : 'flex-start', padding: sidebarCollapsed ? '10px 0' : '10px 14px' }} onClick={() => setActiveTab(tab.key)}>
-            <span style={{ fontSize: 15, width: 18, textAlign: 'center', flexShrink: 0 }}>{tab.icon}</span>
-            {!sidebarCollapsed && tab.label}
-          </button>
-        ))}
-
-        <div style={s.sidebarFooter}>
-          {profile && !sidebarCollapsed && (
-            <div style={{ padding: '10px 12px', borderRadius: 8, background: 'var(--app-card)', border: '1px solid var(--app-border)', display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--app-text)', lineHeight: 1.3 }}>
-                {profile.first_name} {profile.last_name}
-              </div>
-              <div style={{ fontSize: 10, color: 'var(--app-muted)', fontFamily: 'monospace' }}>
-                {profile.student_id}
-              </div>
-              {profile.program_code && (
-                <div style={{ fontSize: 10, color: 'var(--app-success)', marginTop: 2 }}>
-                  {profile.program_code} - Year {profile.year_level}
-                </div>
-              )}
-            </div>
-          )}
-          <button className="sidebar-logout" title="Log out" aria-label="Log out" onClick={handleLogout} style={{ ...s.pillBtn(false), color: 'var(--app-danger)', border: '1px solid var(--app-danger-border)', justifyContent: sidebarCollapsed ? 'center' : 'flex-start', padding: sidebarCollapsed ? '10px 0' : '10px 14px' }}>
-            <span style={{ fontSize: 14, width: 18, textAlign: 'center' }}>⏻</span>
-            {!sidebarCollapsed && 'Log Out'}
-          </button>
-        </div>
-      </div>
-
-      <div style={s.main}>
-        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <div style={{ position: 'relative' }} ref={notifRef}>
-            <button
-              type="button"
-              onClick={() => {
-                setNotifOpen((prev) => {
-                  const next = !prev;
-                  if (next) loadNotifications();
-                  return next;
-                });
-              }}
-              style={s.notifButton}
-              aria-label="Notifications"
-            >
-              🔔
-              {unreadCount > 0 && <span style={s.notifBadge}>{unreadCount > 9 ? '9+' : unreadCount}</span>}
-            </button>
-            {notifOpen && (
-              <div style={s.notifPanel}>
-                <div style={s.notifHeader}>
-                  <div style={s.notifTitle}>Notifications</div>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button
-                      type="button"
-                      onClick={loadNotifications}
-                      style={{ background: 'transparent', border: '1px solid var(--app-border)', borderRadius: 8, padding: '4px 8px', fontSize: 11, color: 'var(--app-muted)', cursor: 'pointer' }}
-                    >
-                      Refresh
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleMarkAllRead}
-                      style={{ background: 'transparent', border: '1px solid var(--app-border)', borderRadius: 8, padding: '4px 8px', fontSize: 11, color: 'var(--app-muted)', cursor: 'pointer' }}
-                    >
-                      Mark all read
-                    </button>
-                  </div>
-                </div>
-                {notifLoading ? (
-                  <div style={{ padding: 14, fontSize: 12, color: 'var(--app-muted)' }}>Loading notifications…</div>
-                ) : notifications.length === 0 ? (
-                  <div style={{ padding: 14, fontSize: 12, color: 'var(--app-muted)' }}>No notifications yet.</div>
-                ) : (
-                  notifications.slice(0, 8).map((note) => (
-                    <div key={note.id} style={{ ...s.notifItem, background: note.is_read ? 'transparent' : 'var(--app-panel)' }}>
-                      <span style={{ ...s.notifDot, opacity: note.is_read ? 0.35 : 1 }} />
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--app-text)' }}>{note.title}</div>
-                        <div style={{ fontSize: 12, color: 'var(--app-muted)', marginTop: 4 }}>{note.message}</div>
-                        <div style={s.notifTime}>{formatNotifTime(note.created_at)}</div>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-        {activeTab === 'profile'    && <ProfileTab />}
-        {activeTab === 'prospectus' && <ProspectusTab />}
-        {activeTab === 'enrollment' && <EnrollmentTab />}
-        {activeTab === 'grades'     && <GradesTab />}
-      </div>
-    </div>
+    <DashboardLayout
+      portalLabel="STUDENT PORTAL"
+      tabs={TABS}
+      activeTab={activeTab}
+      onTabChange={setActiveTab}
+      onLogout={handleLogout}
+      profileCard={profile && {
+        name: `${profile.first_name} ${profile.last_name}`,
+        line1: profile.student_id,
+        line2: profile.program_code ? `${profile.program_code} - Year ${profile.year_level}` : null,
+      }}
+      topBar={
+        <NotificationBell
+          fetchItems={fetchNotifications}
+          onMarkAllRead={() => markNotificationsRead({ mark_all: true })}
+        />
+      }
+    >
+      {activeTab === 'profile'    && <ProfileTab />}
+      {activeTab === 'prospectus' && <ProspectusTab />}
+      {activeTab === 'enrollment' && <EnrollmentTab />}
+      {activeTab === 'grades'     && <GradesTab />}
+    </DashboardLayout>
   );
 }

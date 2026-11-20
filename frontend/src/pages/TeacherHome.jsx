@@ -10,267 +10,9 @@ import {
   getTeacherProfile,
 } from '../controllers/teacherController';
 import { signOut } from '../controllers/authController';
-import Logo from '../assets/Logo.png';
-
-const shell = {
-  page: {
-    minHeight: '100vh',
-    background: 'var(--app-bg-gradient)',
-    color: 'var(--app-text)',
-    fontFamily: "'DM Sans', 'Segoe UI', sans-serif",
-  },
-  layout: {
-    display: 'grid',
-    gridTemplateColumns: '220px 1fr',
-    minHeight: '100vh',
-  },
-  sidebar: {
-    borderRight: '1px solid var(--app-border)',
-    background: 'var(--app-card)',
-    padding: '28px 16px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 6,
-  },
-  logo: {
-    fontFamily: 'monospace',
-    fontSize: 16,
-    color: 'var(--app-accent)',
-    letterSpacing: '0.08em',
-    marginBottom: 16,
-    paddingLeft: 4,
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-  },
-  logoImg: {
-    width: 28,
-    height: 28,
-    objectFit: 'contain',
-  },
-  logoDot: {
-    width: 8,
-    height: 8,
-    background: 'var(--app-accent)',
-    borderRadius: '50%',
-    boxShadow: '0 0 8px var(--app-accent)',
-    flexShrink: 0,
-  },
-  navLabel: {
-    fontSize: 10,
-    fontWeight: 600,
-    letterSpacing: '0.12em',
-    color: 'var(--app-muted)',
-    textTransform: 'uppercase',
-    padding: '0 10px',
-    margin: '12px 0 4px',
-  },
-  pillBtn: (active) => ({
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-    padding: '10px 14px',
-    borderRadius: 50,
-    border: active ? '1px solid var(--app-accent)' : '1px solid transparent',
-    background: active ? 'var(--app-accent-bg)' : 'transparent',
-    color: active ? 'var(--app-accent)' : 'var(--app-muted)',
-    fontSize: 13.5,
-    fontWeight: 500,
-    cursor: 'pointer',
-    textAlign: 'left',
-    width: '100%',
-    fontFamily: 'inherit',
-    transition: 'all 0.18s',
-  }),
-  sidebarFooter: {
-    marginTop: 'auto',
-    paddingTop: 16,
-    borderTop: '1px solid var(--app-border)',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 6,
-  },
-  profileCard: {
-    padding: '10px 12px',
-    borderRadius: 8,
-    background: 'var(--app-panel)',
-    border: '1px solid var(--app-border)',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 2,
-  },
-  main: {
-    padding: 28,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 20,
-  },
-  offeringBtn: (active) => ({
-    width: '100%',
-    textAlign: 'left',
-    padding: '10px 14px',
-    borderRadius: 14,
-    border: active ? '1px solid var(--app-accent)' : '1px solid transparent',
-    background: active ? 'var(--app-accent-bg)' : 'transparent',
-    color: active ? 'var(--app-accent)' : 'var(--app-muted)',
-    cursor: 'pointer',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 2,
-    transition: 'all 0.15s ease',
-    fontFamily: 'inherit',
-  }),
-  badge: (tone = 'green') => ({
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 6,
-    borderRadius: 999,
-    padding: '5px 10px',
-    fontSize: 11,
-    fontWeight: 700,
-    letterSpacing: '0.04em',
-    textTransform: 'uppercase',
-    color: tone === 'blue' ? '#e0f2fe' : tone === 'amber' ? '#fde68a' : '#86efac',
-    background:
-      tone === 'blue'
-        ? 'rgba(20, 43, 121, 0.65)'
-        : tone === 'amber'
-          ? 'rgba(96, 42, 12, 0.6)'
-          : 'rgba(22, 101, 52, 0.32)',
-    border: '1px solid rgba(255,255,255,0.08)',
-  }),
-  hero: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 16,
-    flexWrap: 'wrap',
-    textAlign: 'center',
-  },
-  heroText: {
-    flex: '1 1 100%',
-    maxWidth: 760,
-  },
-  title: { margin: 0, fontSize: 26, fontWeight: 600, letterSpacing: '-0.01em' },
-  subtitle: { margin: '4px 0 0', color: 'var(--app-muted)', maxWidth: 720, lineHeight: 1.5, fontSize: 13 },
-  statsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
-    gap: 14,
-  },
-  statCard: {
-    borderRadius: 18,
-    border: '1px solid var(--app-border)',
-    background: 'var(--app-card)',
-    padding: 18,
-  },
-  statLabel: { margin: 0, fontSize: 10, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--app-muted)' },
-  statValue: { margin: '10px 0 0', fontSize: 26, fontWeight: 700, letterSpacing: '-0.03em' },
-  statSub: { margin: '6px 0 0', fontSize: 12, color: 'var(--app-muted)' },
-  sectionBar: {
-    padding: '12px 18px',
-    background: 'var(--app-accent-bg)',
-    borderBottom: '1px solid var(--app-border)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  sectionBarTitle: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    fontSize: 14,
-    fontWeight: 700,
-    letterSpacing: '0.14em',
-    textTransform: 'uppercase',
-    color: 'var(--app-accent)',
-  },
-  panel: {
-    borderRadius: 20,
-    border: '1px solid var(--app-border)',
-    background: 'var(--app-card)',
-    overflow: 'hidden',
-    boxShadow: '0 24px 60px rgba(0,0,0,0.18)',
-  },
-  panelHead: {
-    padding: '16px 18px',
-    borderBottom: '1px solid var(--app-border)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  panelTitle: { margin: 0, fontSize: 14, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--app-accent)' },
-  table: { width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' },
-  th: {
-    textAlign: 'left',
-    padding: '12px 16px',
-    fontSize: 11,
-    letterSpacing: '0.12em',
-    textTransform: 'uppercase',
-    color: 'var(--app-muted)',
-    background: 'var(--app-panel)',
-    position: 'sticky',
-    top: 0,
-    zIndex: 1,
-  },
-  td: {
-    padding: '12px 16px',
-    borderTop: '1px solid var(--app-border)',
-    verticalAlign: 'middle',
-  },
-  studentCell: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 2,
-    paddingLeft: 0,
-    lineHeight: 1.35,
-    textAlign: 'left',
-  },
-  studentIdCell: {
-    paddingLeft: 12,
-    textAlign: 'center',
-  },
-  input: {
-    width: '100%',
-    maxWidth: 92,
-    borderRadius: 10,
-    border: '1px solid var(--app-border)',
-    background: 'var(--app-panel)',
-    color: 'var(--app-text)',
-    padding: '8px 10px',
-    outline: 'none',
-    boxSizing: 'border-box',
-    margin: '0 auto',
-    display: 'block',
-  },
-  centerCell: {
-    textAlign: 'center',
-  },
-  actionBtn: (disabled) => ({
-    border: '1px solid var(--app-border)',
-    background: disabled ? 'var(--app-panel)' : 'var(--app-accent-bg)',
-    color: disabled ? 'var(--app-muted)' : 'var(--app-accent)',
-    borderRadius: 10,
-    padding: '9px 12px',
-    cursor: disabled ? 'not-allowed' : 'pointer',
-    fontWeight: 700,
-    minWidth: 88,
-    margin: '0 auto',
-    display: 'block',
-  }),
-  helperText: { color: 'var(--app-muted)', fontSize: 12, lineHeight: 1.5 },
-  emptyState: {
-    padding: 28,
-    color: 'var(--app-muted)',
-    textAlign: 'center',
-  },
-  tableWrap: {
-    maxHeight: 'calc(100vh - 420px)',
-    overflow: 'auto',
-  },
-};
+import DashboardLayout from '../components/DashboardLayout';
+import { PageHeader, StatCard, Badge } from '../components/ui';
+import Icon from '../components/Icons';
 
 function fmtGrade(value) {
   if (value === '' || value == null) return '';
@@ -288,9 +30,11 @@ function apiErrorText(err) {
   return parts.length ? parts.join('\n') : err.message;
 }
 
+
 export default function TeacherHome() {
   const navigate = useNavigate();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [notice, setNotice] = useState(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [offerings, setOfferings] = useState([]);
   const [selected, setSelected] = useState(null);
   const [teacherProfile, setTeacherProfile] = useState(null);
@@ -309,7 +53,7 @@ export default function TeacherHome() {
       }
     } catch (err) {
       console.error(err);
-      alert('Failed to load offerings.');
+      setNotice({ type: 'error', text: 'Failed to load offerings.' });
     }
   }
 
@@ -369,7 +113,7 @@ export default function TeacherHome() {
       setEnrollments(rows);
     } catch (err) {
       console.error(err);
-      alert('Failed to load enrollments.');
+      setNotice({ type: 'error', text: 'Failed to load enrollments.' });
     } finally {
       setLoading(false);
     }
@@ -420,9 +164,10 @@ export default function TeacherHome() {
         await submitGrade(payload);
       }
       await selectOffering(selected);
+      setNotice({ type: 'success', text: 'Grade saved.' });
     } catch (err) {
       console.error(err);
-      alert('Failed to save grade: ' + apiErrorText(err));
+      setNotice({ type: 'error', text: 'Failed to save grade: ' + apiErrorText(err) });
     } finally {
       setSavingId(null);
     }
@@ -430,13 +175,14 @@ export default function TeacherHome() {
 
   async function handleDeleteGrade(row) {
     if (!row.grade_id) return;
-    if (!confirm('Delete this grade entry?')) return;
+    if (confirmDeleteId !== row.enrollment_id) { setConfirmDeleteId(row.enrollment_id); return; }
+    setConfirmDeleteId(null);
     try {
       await deleteGrade(row.grade_id);
       await selectOffering(selected);
     } catch (err) {
       console.error(err);
-      alert('Failed to delete grade: ' + apiErrorText(err));
+      setNotice({ type: 'error', text: 'Failed to delete grade: ' + apiErrorText(err) });
     }
   }
 
@@ -451,249 +197,143 @@ export default function TeacherHome() {
     };
   }, [offerings.length, enrollments.length, grades]);
 
-  return (
-    <div style={shell.page}>
-      <div style={{ ...shell.layout, gridTemplateColumns: `${sidebarCollapsed ? 72 : 220}px 1fr` }}>
-        <aside className={`dashboard-sidebar${sidebarCollapsed ? ' collapsed' : ''}`} style={{ ...shell.sidebar, width: sidebarCollapsed ? 72 : 220, boxSizing: 'border-box' }}>
-          <button type="button" aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} onClick={() => setSidebarCollapsed((value) => !value)} style={{ ...shell.logo, justifyContent: sidebarCollapsed ? 'center' : 'flex-start', padding: sidebarCollapsed ? '10px 0' : '0 0 0 4px', width: '100%', border: 0, background: 'transparent', cursor: 'pointer' }}>
-            <img src={Logo} alt="Alliance Team Titans logo" style={shell.logoImg} />
-            {!sidebarCollapsed && <span>TEACHER PORTAL</span>}
-          </button>
-          {!sidebarCollapsed && <div style={shell.navLabel}>Navigation</div>}
-          <button
-            onClick={() => selected ? selectOffering(selected) : loadOfferings()}
-            title="Refresh dashboard"
-            aria-label="Refresh dashboard"
-            className="sidebar-nav-action"
-            style={{ ...shell.pillBtn(true), justifyContent: sidebarCollapsed ? 'center' : 'flex-start', padding: sidebarCollapsed ? '10px 0' : '10px 14px' }}
-          >
-            <span style={{ fontSize: 15, width: 18, textAlign: 'center', flexShrink: 0 }}>↻</span>
-            {!sidebarCollapsed && 'Refresh Dashboard'}
-          </button>
+  function setCell(index, key, value) {
+    setEnrollments((prev) => prev.map((r, i) => (i === index ? { ...r, [key]: value } : r)));
+  }
 
-          {!sidebarCollapsed && <div style={shell.navLabel}>My Offerings</div>}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: '1 1 auto', minHeight: 0, overflowY: 'auto', paddingRight: 2 }}>
-            {offerings.length === 0 && <div style={{ ...shell.helperText, padding: '0 10px' }}>No assigned offerings yet.</div>}
+  return (
+    <DashboardLayout
+      portalLabel="TEACHER PORTAL"
+      onLogout={handleLogout}
+      profileCard={teacherProfile && {
+        name: `${teacherProfile.first_name} ${teacherProfile.last_name}`,
+        line1: teacherProfile.teacher_id || 'Faculty',
+        line2: teacherProfile.college_name,
+      }}
+      sidebarExtra={(collapsed) => (
+        <>
+          {!collapsed && <div className="sidebar-label">My offerings</div>}
+          <div className="sidebar-offerings">
+            {offerings.length === 0 && !collapsed && <div className="helper-text" style={{ padding: '0 10px' }}>No assigned offerings yet.</div>}
             {offerings.map((off) => (
-              <button className="sidebar-offering-action" key={off.id} title={`${off.offer_code} · ${off.subject_code}`} onClick={() => selectOffering(off)} style={shell.offeringBtn(selected?.id === off.id)}>
-                {!sidebarCollapsed && <><span style={{ fontWeight: 700 }}>{off.offer_code}</span><span style={{ fontSize: 11, color: '#94a3b8' }}>{off.subject_code} • {off.term_label}</span></>}
-                {sidebarCollapsed && <span style={{ fontWeight: 700 }}>{off.offer_code.slice(0, 3)}</span>}
+              <button
+                key={off.id}
+                type="button"
+                className={`sidebar-offering-action${selected?.id === off.id ? ' active' : ''}`}
+                title={`${off.offer_code} · ${off.subject_code}`}
+                onClick={() => selectOffering(off)}
+              >
+                {collapsed ? (
+                  <strong>{off.offer_code.slice(0, 3)}</strong>
+                ) : (
+                  <>
+                    <strong>{off.offer_code}</strong>
+                    <small>{off.subject_code} • {off.term_label}</small>
+                  </>
+                )}
               </button>
             ))}
           </div>
-
-          <div style={shell.sidebarFooter}>
-            {teacherProfile && !sidebarCollapsed && (
-              <div style={shell.profileCard}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: '#e2e8f0', lineHeight: 1.3 }}>
-                  {teacherProfile.first_name} {teacherProfile.last_name}
-                </div>
-                <div style={{ fontSize: 10, color: '#64748b', fontFamily: 'monospace' }}>
-                  {teacherProfile.teacher_id || 'Faculty'}
-                </div>
-                {teacherProfile.college_name && (
-                  <div style={{ fontSize: 10, color: '#4ade80', marginTop: 2 }}>
-                    {teacherProfile.college_name}
-                  </div>
-                )}
-              </div>
-            )}
-            <button className="sidebar-logout" title="Log out" aria-label="Log out" onClick={handleLogout} style={{ ...shell.pillBtn(false), color: 'var(--app-danger)', border: '1px solid var(--app-danger-border)', justifyContent: sidebarCollapsed ? 'center' : 'flex-start', padding: sidebarCollapsed ? '10px 0' : '10px 14px' }}>
-              <span style={{ fontSize: 14, width: 18, textAlign: 'center' }}>⏻</span>
-              {!sidebarCollapsed && 'Log Out'}
+        </>
+      )}
+    >
+      <PageHeader
+        title={selected ? `${selected.offer_code} · ${selected.subject_name}` : 'Select an offering'}
+        subtitle="Enter prelim, midterm and finals grades for your students. Saved grades can be edited in place."
+        right={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {selected && <Badge tone="info">{selected.term_label}</Badge>}
+            <button type="button" className="ui-btn" onClick={loadOfferings}>
+              <Icon name="refresh" size={15} /> Refresh
             </button>
           </div>
-        </aside>
+        }
+      />
 
-        <main style={shell.main}>
-          <section style={shell.hero}>
-            <div style={shell.heroText}>
-              <h1 style={shell.title}>
-                {selected ? `${selected.offer_code} · ${selected.subject_name}` : 'Select an offering'}
-              </h1>
-              <p style={shell.subtitle}>
-                Post preliminary, midterm, and finals grades for the students assigned to your class. Existing grades can be updated directly from this screen.
-              </p>
-            </div>
-            {selected && <span style={shell.badge('blue')}>{selected.term_label}</span>}
-          </section>
+      {notice && (
+        <div className={`ui-notice ${notice.type}`} role="status">
+          <span>{notice.text}</span>
+          <button type="button" aria-label="Dismiss" onClick={() => setNotice(null)}>×</button>
+        </div>
+      )}
 
-          <section style={shell.statsGrid}>
-            <div style={shell.statCard}>
-              <p style={shell.statLabel}>Offerings</p>
-              <p style={shell.statValue}>{summary.offerings}</p>
-              <p style={shell.statSub}>assigned to your account</p>
-            </div>
-            <div style={shell.statCard}>
-              <p style={shell.statLabel}>Students</p>
-              <p style={shell.statValue}>{summary.students}</p>
-              <p style={shell.statSub}>in the selected section</p>
-            </div>
-            <div style={shell.statCard}>
-              <p style={shell.statLabel}>Graded</p>
-              <p style={shell.statValue}>{summary.graded}</p>
-              <p style={shell.statSub}>saved grade records</p>
-            </div>
-            <div style={shell.statCard}>
-              <p style={shell.statLabel}>Passing</p>
-              <p style={shell.statValue}>{summary.passing}</p>
-              <p style={shell.statSub}>finals grade ≤ 3.0</p>
-            </div>
-          </section>
+      <section className="ui-stats-grid">
+        <StatCard label="Offerings" value={summary.offerings} sub="assigned to you" />
+        <StatCard label="Students" value={summary.students} sub="in this section" />
+        <StatCard label="Graded" value={summary.graded} sub="saved records" />
+        <StatCard label="Passing" value={summary.passing} sub="finals ≤ 3.0" />
+      </section>
 
-          <section style={shell.panel}>
-            <div style={shell.sectionBar}>
-              <div style={shell.sectionBarTitle}>
-                <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#4ade80', display: 'inline-block' }} />
-                Roster & Grade Editor
-              </div>
-              {selected && (
-                <div style={{ display: 'flex', justifyContent: 'flex-end', paddingRight: 18 }}>
-                  <span style={shell.badge('amber')}>{enrollments.length} enrolled</span>
-                </div>
-              )}
-            </div>
-            <div style={{ padding: '14px 18px 0' }}>
-              <div style={shell.helperText}>Enter any term grade. Existing grades can be updated directly.</div>
-            </div>
-
-            {!selected ? (
-              <div style={shell.emptyState}>Choose an offering from the left panel to load enrolled students.</div>
-            ) : loading ? (
-              <div style={shell.emptyState}>Loading students…</div>
-            ) : enrollments.length === 0 ? (
-              <div style={shell.emptyState}>No enrolled students are available for this offering yet.</div>
-            ) : (
-              <div style={shell.tableWrap}>
-                <table style={shell.table}>
-                  <colgroup>
-                    <col style={{ width: '22%' }} />
-                    <col style={{ width: '14%' }} />
-                    <col style={{ width: '10%' }} />
-                    <col style={{ width: '10%' }} />
-                    <col style={{ width: '10%' }} />
-                    <col style={{ width: '14%' }} />
-                    <col style={{ width: '10%' }} />
-                    <col style={{ width: '10%' }} />
-                  </colgroup>
-                  <thead>
-                    <tr>
-                      <th style={shell.th}>Student</th>
-                      <th style={{ ...shell.th, ...shell.centerCell }}>Student ID</th>
-                      <th style={{ ...shell.th, ...shell.centerCell }}>Prelim</th>
-                      <th style={{ ...shell.th, ...shell.centerCell }}>Midterm</th>
-                      <th style={{ ...shell.th, ...shell.centerCell }}>Finals</th>
-                      <th style={{ ...shell.th, ...shell.centerCell }}>Remarks</th>
-                      <th style={{ ...shell.th, ...shell.centerCell }}>State</th>
-                      <th style={{ ...shell.th, ...shell.centerCell }}>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {enrollments.map((row, index) => {
-                      const rowState = row.grade_id ? 'Updated' : 'New';
-                      const rowBadgeTone = row.grade_id ? 'blue' : 'green';
-                      return (
-                        <tr key={row.enrollment_id} style={{ background: index % 2 === 0 ? 'transparent' : 'rgba(148, 163, 184, 0.2)' }}>
-                          <td style={{ ...shell.td, textAlign: 'left' }}>
-                            <div style={shell.studentCell}>
-                              <div style={{ fontWeight: 600, fontSize: 13 }}>{row.student_name}</div>
-                            </div>
-                          </td>
-                          <td style={{ ...shell.td, ...shell.studentIdCell }}>
-                            <span style={{ fontFamily: 'monospace', color: '#16a34a', fontWeight: 600 }}>{row.student_id_no}</span>
-                          </td>
-                          <td style={{ ...shell.td, ...shell.centerCell }}>
-                            <input
-                              value={row.prelim}
-                              onChange={(e) => {
-                                const copy = [...enrollments];
-                                copy[index].prelim = e.target.value;
-                                setEnrollments(copy);
-                              }}
-                              style={shell.input}
-                              placeholder=""
-                            />
-                            {errors[row.enrollment_id]?.prelim && <div style={{ color: '#fca5a5', fontSize: 11, marginTop: 6 }}>{errors[row.enrollment_id].prelim}</div>}
-                          </td>
-                          <td style={{ ...shell.td, ...shell.centerCell }}>
-                            <input
-                              value={row.midterm}
-                              onChange={(e) => {
-                                const copy = [...enrollments];
-                                copy[index].midterm = e.target.value;
-                                setEnrollments(copy);
-                              }}
-                              style={shell.input}
-                              placeholder=""
-                            />
-                            {errors[row.enrollment_id]?.midterm && <div style={{ color: '#fca5a5', fontSize: 11, marginTop: 6 }}>{errors[row.enrollment_id].midterm}</div>}
-                          </td>
-                          <td style={{ ...shell.td, ...shell.centerCell }}>
-                            <input
-                              value={row.finals}
-                              onChange={(e) => {
-                                const copy = [...enrollments];
-                                copy[index].finals = e.target.value;
-                                setEnrollments(copy);
-                              }}
-                              style={shell.input}
-                              placeholder=""
-                            />
-                            {errors[row.enrollment_id]?.finals && <div style={{ color: '#fca5a5', fontSize: 11, marginTop: 6 }}>{errors[row.enrollment_id].finals}</div>}
-                          </td>
-                          <td style={{ ...shell.td, ...shell.centerCell }}>
-                            <input
-                              value={row.remarks}
-                              onChange={(e) => {
-                                const copy = [...enrollments];
-                                copy[index].remarks = e.target.value;
-                                setEnrollments(copy);
-                              }}
-                              style={{ ...shell.input, maxWidth: 160 }}
-                              placeholder="Optional"
-                            />
-                          </td>
-                          <td style={{ ...shell.td, ...shell.centerCell }}>
-                            <span style={shell.badge(rowBadgeTone)}>{rowState}</span>
-                          </td>
-                          <td style={{ ...shell.td, ...shell.centerCell }}>
-                            <button
-                              onClick={() => handleSubmitGrade(row)}
-                              disabled={savingId === row.enrollment_id}
-                              style={shell.actionBtn(savingId === row.enrollment_id)}
-                            >
-                              {savingId === row.enrollment_id ? 'Saving…' : row.grade_id ? 'Update' : 'Post'}
+      <section className="ui-panel">
+        {!selected ? (
+          <div className="ui-empty">Choose an offering from the sidebar to load its students.</div>
+        ) : loading ? (
+          <div className="ui-empty">Loading students…</div>
+        ) : enrollments.length === 0 ? (
+          <div className="ui-empty">No enrolled students for this offering yet.</div>
+        ) : (
+          <div className="ui-table-wrap">
+            <table className="ui-table">
+              <thead>
+                <tr>
+                  <th>Student</th>
+                  <th className="center">ID</th>
+                  <th className="center">Prelim</th>
+                  <th className="center">Midterm</th>
+                  <th className="center">Finals</th>
+                  <th>Remarks</th>
+                  <th className="center">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {enrollments.map((row, index) => {
+                  const rowErrors = errors[row.enrollment_id] || {};
+                  const saving = savingId === row.enrollment_id;
+                  return (
+                    <tr key={row.enrollment_id}>
+                      <td style={{ fontWeight: 600 }}>{row.student_name}</td>
+                      <td className="center"><span className="ui-mono">{row.student_id_no}</span></td>
+                      {['prelim', 'midterm', 'finals'].map((key) => (
+                        <td key={key} className="center">
+                          <input
+                            className={`ui-input grade${rowErrors[key] ? ' invalid' : ''}`}
+                            aria-label={`${key} for ${row.student_name}`}
+                            value={row[key]}
+                            onChange={(e) => setCell(index, key, e.target.value)}
+                          />
+                          {rowErrors[key] && <div className="ui-field-error">{rowErrors[key]}</div>}
+                        </td>
+                      ))}
+                      <td>
+                        <input
+                          className="ui-input"
+                          aria-label={`remarks for ${row.student_name}`}
+                          value={row.remarks}
+                          onChange={(e) => setCell(index, 'remarks', e.target.value)}
+                          placeholder="Optional"
+                        />
+                      </td>
+                      <td className="center">
+                        <div className="ui-row-actions">
+                          <button type="button" className="ui-btn primary small" onClick={() => handleSubmitGrade(row)} disabled={saving}>
+                            {saving ? 'Saving…' : row.grade_id ? 'Update' : 'Post'}
+                          </button>
+                          {row.grade_id && (
+                            <button type="button" className="ui-btn danger small" onClick={() => handleDeleteGrade(row)}>
+                              {confirmDeleteId === row.enrollment_id ? 'Confirm?' : 'Delete'}
                             </button>
-                            {row.grade_id && (
-                              <button
-                                onClick={() => handleDeleteGrade(row)}
-                                style={{
-                                  ...shell.actionBtn(false),
-                                  marginTop: 8,
-                                  border: '1px solid rgba(220, 38, 38, 0.35)',
-                                  background: 'rgba(220, 38, 38, 0.12)',
-                                  color: '#b91c1c',
-                                }}
-                              >
-                                Delete
-                              </button>
-                            )}
-                            {errors[row.enrollment_id]?._row && (
-                              <div style={{ color: '#fca5a5', fontSize: 11, marginTop: 6 }}>
-                                {errors[row.enrollment_id]._row}
-                              </div>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </section>
-        </main>
-      </div>
-    </div>
+                          )}
+                        </div>
+                        {rowErrors._row && <div className="ui-field-error">{rowErrors._row}</div>}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+    </DashboardLayout>
   );
 }

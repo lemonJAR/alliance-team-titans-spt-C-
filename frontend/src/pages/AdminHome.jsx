@@ -17,51 +17,12 @@ import {
   fetchNotifications,
 } from '../controllers/adminController';
 import { signOut } from '../controllers/authController';
-import Logo from '../assets/Logo.png';
+import Icon from '../components/Icons';
+import DashboardLayout from '../components/DashboardLayout';
+import { notify, confirmDialog } from '../components/toastBus';
+import { PageHeader, PanelTitle, Field, SectionHeader, StatCard, NotificationBell } from '../components/ui';
 
 const s = {
-  root: {
-    display: 'flex', minHeight: '100vh',
-    fontFamily: "'DM Sans', 'Segoe UI', sans-serif",
-    background: 'var(--app-bg-gradient)', color: 'var(--app-text)',
-  },
-  sidebar: {
-    width: 220, minHeight: '100vh', background: 'var(--app-card)',
-    borderRight: '1px solid var(--app-border)', display: 'flex',
-    flexDirection: 'column', padding: '28px 16px', gap: 6, flexShrink: 0,
-  },
-  sidebarFooter: {
-    marginTop: 'auto',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 6,
-  },
-  logo: {
-    fontFamily: 'monospace', fontSize: 16, color: 'var(--app-accent)',
-    letterSpacing: '0.08em', marginBottom: 28, paddingLeft: 4,
-    display: 'flex', alignItems: 'center', gap: 8,
-  },
-  logoImg: { width: 28, height: 28, objectFit: 'contain' },
-  logoDot: {
-    width: 8, height: 8, background: 'var(--app-accent)', borderRadius: '50%',
-    boxShadow: '0 0 8px var(--app-accent)', flexShrink: 0,
-  },
-  navLabel: {
-    fontSize: 10, fontWeight: 600, letterSpacing: '0.12em', color: 'var(--app-muted)',
-    textTransform: 'uppercase', padding: '0 10px', margin: '12px 0 4px',
-  },
-  pillBtn: (active) => ({
-    display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px',
-    borderRadius: 50, border: active ? '1px solid var(--app-accent)' : '1px solid transparent',
-    background: active ? 'var(--app-accent-bg)' : 'transparent',
-    color: active ? 'var(--app-accent)' : 'var(--app-muted)', fontSize: 13.5, fontWeight: 500,
-    cursor: 'pointer', textAlign: 'left', width: '100%', fontFamily: 'inherit',
-    transition: 'all 0.18s',
-  }),
-  main: {
-    flex: 1, overflowY: 'auto', padding: '24px 28px',
-    display: 'flex', flexDirection: 'column', gap: 20,
-  },
   pageTitle: { fontSize: 26, fontWeight: 600, letterSpacing: '-0.01em' },
   pageSub:   { fontSize: 13, color: 'var(--app-muted)', marginTop: 4 },
   panels:    { display: 'flex', gap: 20, flexWrap: 'wrap' },
@@ -127,64 +88,20 @@ const c = {
   shadowLg: 'var(--app-shadow-lg)',
   rowAlt: 'rgba(148, 163, 184, 0.08)',
   overlay: 'rgba(15, 23, 42, 0.16)',
-  danger: '#dc2626',
-  dangerBg: 'rgba(220, 38, 38, 0.08)',
-  dangerBorder: 'rgba(220, 38, 38, 0.24)',
-  info: '#2563eb',
-  infoBg: 'rgba(37, 99, 235, 0.08)',
-  infoBorder: 'rgba(37, 99, 235, 0.24)',
-  warning: '#d97706',
-  warningBg: 'rgba(245, 158, 11, 0.10)',
-  warningBorder: 'rgba(245, 158, 11, 0.26)',
+  danger: 'var(--app-danger)',
+  dangerBg: 'var(--app-danger-bg)',
+  dangerBorder: 'var(--app-danger-border)',
+  info: 'var(--app-info)',
+  infoBg: 'var(--app-info-bg)',
+  infoBorder: 'var(--app-info-border)',
+  warning: 'var(--app-warning)',
+  warningBg: 'var(--app-warning-bg)',
+  warningBorder: 'var(--app-warning-border)',
   purple: '#a855f7',
   purpleBg: 'rgba(168, 85, 247, 0.10)',
   purpleBorder: 'rgba(168, 85, 247, 0.26)',
 };
 
-
-function PanelTitle({ children }) {
-  return (
-    <div style={s.panelTitle}>
-      <span style={{ width: 6, height: 6, background: 'var(--app-accent)', borderRadius: '50%', opacity: 0.7, display: 'inline-block' }} />
-      {children}
-    </div>
-  );
-}
-
-function Field({ label, children }) {
-  return (
-    <div>
-      <label style={s.label}>{label}</label>
-      {children}
-    </div>
-  );
-}
-
-function SectionHeader({ title, right }) {
-  return (
-    <div style={{
-      padding: '10px 20px', background: 'var(--app-accent-bg)', borderBottom: '1px solid var(--app-border)',
-      fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
-      color: 'var(--app-accent)', display: 'flex', alignItems: 'center', gap: 6,
-    }}>
-      <span style={{ width: 6, height: 6, background: 'var(--app-accent)', borderRadius: '50%', display: 'inline-block' }} />
-      {title}
-      {right && <span style={{ marginLeft: 'auto', fontWeight: 400, color: 'var(--app-muted)', fontSize: 11 }}>{right}</span>}
-    </div>
-  );
-}
-
-function StatCard({ label, value }) {
-  return (
-    <div style={{
-      background: 'var(--app-panel)', border: '1px solid var(--app-border)', borderRadius: 8,
-      padding: '12px 16px', minWidth: 120, display: 'flex', flexDirection: 'column', gap: 4,
-    }}>
-      <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--app-muted)' }}>{label}</div>
-      <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--app-text)' }}>{value ?? '--'}</div>
-    </div>
-  );
-}
 
 function MultiSelect({ options, selected, onChange, placeholder, groupKey = 'program_name' }) {
   const toggle = (id) =>
@@ -256,7 +173,7 @@ function SchoolTab() {
   const [subject, setSubject] = useState({ program: '', name: '', code: '', year_level: '1', semester: '1', units: '3', prerequisites: [] });
   const [semload, setSemload] = useState({ program: '', year_level: '1', semester: '1', max_units: '27' });
   const [loadFilter, setLoadFilter] = useState('');
-  const [setupSection, setSetupSection] = useState('overview');
+  const [setupSection, setSetupSection] = useState('colleges');
 
 useEffect(() => {
   Promise.all([loadColleges(), loadPrograms(), loadSemLoads()]);
@@ -283,18 +200,18 @@ useEffect(() => {
     e.preventDefault();
     try {
       await addCollege({ name: col.name, code: col.code.toUpperCase() });
-      alert(`OK: College "${col.name} (${col.code})" added.`);
+      notify(`OK: College "${col.name} (${col.code})" added.`);
       setCol({ name: '', code: '' }); loadColleges();
-    } catch (err) { alert('Error: ' + (err.response?.data ? JSON.stringify(err.response.data) : err.message)); }
+    } catch (err) { notify('Error: ' + (err.response?.data ? JSON.stringify(err.response.data) : err.message)); }
   }
 
   async function handleAddProgram(e) {
     e.preventDefault();
     try {
       await addDegreeProgram({ college: parseInt(prog.college), name: prog.name, code: prog.code.toUpperCase() });
-      alert(`OK: Program "${prog.name} (${prog.code})" added.`);
+      notify(`OK: Program "${prog.name} (${prog.code})" added.`);
       setProg({ college: '', name: '', code: '' }); loadPrograms();
-    } catch (err) { alert('Error: ' + (err.response?.data ? JSON.stringify(err.response.data) : err.message)); }
+    } catch (err) { notify('Error: ' + (err.response?.data ? JSON.stringify(err.response.data) : err.message)); }
   }
 
   async function handleAddSubject(e) {
@@ -309,10 +226,10 @@ useEffect(() => {
         units:         parseInt(subject.units),
         prerequisites: subject.prerequisites,
       });
-      alert(`OK: Subject "${subject.name}" added.`);
+      notify(`OK: Subject "${subject.name}" added.`);
       setSubject({ program: subject.program, name: '', code: '', year_level: '1', semester: '1', units: '3', prerequisites: [] });
       fetchSubjects(subject.program).then(({ data }) => setPrereqOptions(data)).catch(console.error);
-    } catch (err) { alert('Error: ' + (err.response?.data ? JSON.stringify(err.response.data) : err.message)); }
+    } catch (err) { notify('Error: ' + (err.response?.data ? JSON.stringify(err.response.data) : err.message)); }
   }
 
   async function handleAddSemLoad(e) {
@@ -324,10 +241,10 @@ useEffect(() => {
         semester:   parseInt(semload.semester),
         max_units:  parseInt(semload.max_units),
       });
-      alert('OK: Semester load set.');
+      notify('OK: Semester load set.');
       setSemload({ program: '', year_level: '1', semester: '1', max_units: '27' });
       loadSemLoads();
-    } catch (err) { alert('Error: ' + (err.response?.data ? JSON.stringify(err.response.data) : err.message)); }
+    } catch (err) { notify('Error: ' + (err.response?.data ? JSON.stringify(err.response.data) : err.message)); }
   }
 
   const groupedLoads = semLoads.reduce((acc, sl) => {
@@ -343,54 +260,21 @@ useEffect(() => {
 
   return (
     <>
-      <div>
-        <div style={s.pageTitle}>School Setup</div>
-        <div style={s.pageSub}>Build your academic structure one step at a time.</div>
-      </div>
+      <PageHeader title="School Setup" subtitle="Build your academic structure one step at a time." />
 
       <div style={{ ...s.panel, padding: 0, overflow: 'hidden' }}>
         <div style={s.tabNav}>
           {[
-            { key: 'overview', label: 'Overview' },
-            { key: 'colleges', label: 'Colleges' },
-            { key: 'programs', label: 'Degree Programs' },
+            { key: 'colleges', label: `Colleges (${colleges.length})` },
+            { key: 'programs', label: `Degree Programs (${programs.length})` },
             { key: 'subjects', label: 'Subjects' },
-            { key: 'loads', label: 'Semester Loads' },
+            { key: 'loads', label: `Semester Loads (${semLoads.length})` },
           ].map((tab) => (
             <button key={tab.key} type="button" onClick={() => setSetupSection(tab.key)} style={s.tabButton(setupSection === tab.key)}>
               {tab.label}
             </button>
           ))}
         </div>
-
-        {setupSection === 'overview' && (
-          <div style={{ ...s.tabPanel, display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div>
-              <div style={s.panelTitle}>Academic Structure</div>
-              <p style={s.hint}>Configure each layer in order without displaying every form at once.</p>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 12 }}>
-              {[
-                { key: 'colleges', label: 'Colleges', count: colleges.length, description: 'Top-level academic units.' },
-                { key: 'programs', label: 'Degree Programs', count: programs.length, description: 'Programs belonging to a college.' },
-                { key: 'subjects', label: 'Subjects', count: '—', description: 'Subjects assigned to programs.' },
-                { key: 'loads', label: 'Semester Loads', count: semLoads.length, description: 'Unit limits by program and term.' },
-              ].map((item) => (
-                <button key={item.key} type="button" onClick={() => setSetupSection(item.key)} style={{
-                  textAlign: 'left', background: 'var(--app-panel)', border: '1px solid var(--app-border)',
-                  borderRadius: 8, padding: 16, color: 'var(--app-text)', cursor: 'pointer', fontFamily: 'inherit',
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'baseline' }}>
-                    <strong style={{ fontSize: 14 }}>{item.label}</strong>
-                    <span style={{ color: 'var(--app-accent)', fontSize: 20, fontWeight: 700 }}>{item.count}</span>
-                  </div>
-                  <div style={{ color: 'var(--app-muted)', fontSize: 12, marginTop: 8 }}>{item.description}</div>
-                  <div style={{ color: 'var(--app-accent)', fontSize: 12, marginTop: 14, fontWeight: 600 }}>Manage →</div>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
 
         {['colleges', 'programs', 'subjects'].includes(setupSection) && (
       <div style={s.tabPanel}>
@@ -733,10 +617,10 @@ function TeacherTab() {
         email: form.email, employee_id: form.employee_id,
         department: parseInt(form.department), subjects: form.subjects,
       });
-      alert(`OK: Teacher account created. Credentials sent to ${form.email}.`);
+      notify(`OK: Teacher account created. Credentials sent to ${form.email}.`);
       setForm(emptyForm); setSubjects([]); loadTeachers();
     } catch (err) {
-      alert('Error: ' + (err.response?.data ? JSON.stringify(err.response.data) : err.message));
+      notify('Error: ' + (err.response?.data ? JSON.stringify(err.response.data) : err.message));
     } finally { setLoading(false); }
   }
 
@@ -789,7 +673,7 @@ function TeacherTab() {
   async function handleCsvImport() {
     const validRows = csvRows.filter((row) => row.errors.length === 0);
     if (!validRows.length) return;
-    if (!window.confirm(`Create ${validRows.length} faculty account${validRows.length === 1 ? '' : 's'}? Temporary credentials will be emailed to each teacher.`)) return;
+    if (!await confirmDialog(`Create ${validRows.length} faculty account${validRows.length === 1 ? '' : 's'}? Temporary credentials will be emailed to each teacher.`)) return;
     setCsvImporting(true);
     let created = 0;
     const failures = [];
@@ -812,7 +696,7 @@ function TeacherTab() {
     setCsvImporting(false);
     setCsvRows([]);
     await loadTeachers();
-    alert(`${created} faculty account${created === 1 ? '' : 's'} created.${failures.length ? ` ${failures.length} row${failures.length === 1 ? '' : 's'} failed:\n${failures.join('\n')}` : ''}`);
+    notify(`${created} faculty account${created === 1 ? '' : 's'} created.${failures.length ? ` ${failures.length} row${failures.length === 1 ? '' : 's'} failed:\n${failures.join('\n')}` : ''}`);
   }
 
   const grouped = teachers.reduce((acc, t) => {
@@ -828,11 +712,6 @@ function TeacherTab() {
 
   return (
     <>
-      <div>
-        <div style={s.pageTitle}>Faculty Management</div>
-        <div style={s.pageSub}>Create teacher accounts and view faculty assignments by department.</div>
-      </div>
-
       <div style={{ ...s.panel, padding: 0, overflow: 'hidden' }}>
         <div style={s.tabNav}>
           {[
@@ -939,75 +818,6 @@ function TeacherTab() {
 
         </div>
 
-        {activeFacultyTab === 'directory' && <div style={{ ...s.panel, minWidth: 0, padding: 0, gap: 0, overflow: 'hidden' }}>
-          <div style={{ padding: '10px 18px', background: c.accentBg, borderBottom: '1px solid var(--app-border)', display: 'flex', alignItems: 'center', gap: 10 }}>
-            <PanelTitle>Faculty by Department</PanelTitle>
-            <div style={{ marginLeft: 'auto' }}>
-              <select style={{ ...s.input, width: 'auto', fontSize: 12, padding: '6px 10px' }}
-                value={filterDept} onChange={(e) => setFilterDept(e.target.value)}>
-                <option value="">All Departments</option>
-                {Object.keys(grouped).map((d) => <option key={d} value={d}>{d}</option>)}
-              </select>
-            </div>
-          </div>
-
-          {deptKeys.length === 0 && (
-            <div style={{ ...s.comingSoon, minHeight: 420, padding: 24, boxSizing: 'border-box' }}>
-              <div style={{ fontSize: 36, opacity: 0.3 }}>*</div>
-              <div style={{ fontSize: 14, color: c.muted }}>No faculty added yet.</div>
-            </div>
-          )}
-
-          {deptKeys.map((dept) => (
-            <div key={dept} style={{ ...s.panel, gap: 0, padding: 0, overflow: 'hidden' }}>
-              <div style={{
-                padding: '10px 18px', background: c.accentBg, borderBottom: '1px solid var(--app-border)',
-                fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
-                color: c.accent, display: 'flex', alignItems: 'center', gap: 6,
-              }}>
-                <span style={{ width: 6, height: 6, background: c.accent, borderRadius: '50%', display: 'inline-block' }} />
-                {dept}
-                <span style={{ marginLeft: 'auto', fontWeight: 400, color: c.muted, fontSize: 11 }}>
-                  {grouped[dept].length} {grouped[dept].length === 1 ? 'faculty' : 'faculty members'}
-                </span>
-              </div>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                <thead>
-                  <tr style={{ background: 'var(--app-panel)' }}>
-                    {['Name', 'Employee ID', 'Email', 'Subjects'].map((h, index) => (
-                      <th key={h} style={{
-                        padding: '8px 16px', textAlign: index === 0 ? 'left' : 'center', fontSize: 10, fontWeight: 600,
-                        letterSpacing: '0.08em', textTransform: 'uppercase',
-                        color: c.muted, borderBottom: '1px solid var(--app-border)',
-                      }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {grouped[dept].map((t, i) => (
-                    <tr key={t.employee_id} style={{ background: i % 2 === 0 ? 'transparent' : 'rgba(148, 163, 184, 0.08)', borderBottom: '1px solid var(--app-border)' }}>
-                      <td style={{ padding: '10px 16px', fontWeight: 500, color: c.text, textAlign: 'left' }}>{t.full_name}</td>
-                      <td style={{ padding: '10px 16px', fontFamily: 'monospace', color: c.muted, fontSize: 12, textAlign: 'center' }}>{t.employee_id}</td>
-                      <td style={{ padding: '10px 16px', color: c.muted, fontSize: 12, textAlign: 'center' }}>{t.email}</td>
-                      <td style={{ padding: '10px 16px', textAlign: 'center' }}>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                          {t.subjects?.length > 0
-                            ? t.subjects.map((subject) => (
-                                <span key={subject} style={{
-                                  background: c.accentBg, border: '1px solid var(--app-accent)',
-                                  color: c.accent, borderRadius: 4, padding: '2px 7px', fontSize: 11,
-                                }}>{subject}</span>
-                              ))
-                            : <span style={{ color: c.muted, fontSize: 12 }}>-</span>}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ))}
-        </div>}
       </div>
       </div>
         )}
@@ -1130,10 +940,10 @@ function StudentTab() {
         email: form.email, student_id: form.student_id,
         program: parseInt(form.program), year_level: parseInt(form.year_level),
       });
-      alert(`OK: Student account created. Credentials sent to ${form.email}.`);
+      notify(`OK: Student account created. Credentials sent to ${form.email}.`);
       setForm(emptyForm); setPrograms([]); loadStudents();
     } catch (err) {
-      alert('Error: ' + (err.response?.data ? JSON.stringify(err.response.data) : err.message));
+      notify('Error: ' + (err.response?.data ? JSON.stringify(err.response.data) : err.message));
     } finally { setLoading(false); }
   }
 
@@ -1192,7 +1002,7 @@ function StudentTab() {
   async function handleCsvImport() {
     const validRows = csvRows.filter((row) => row.errors.length === 0);
     if (!validRows.length) return;
-    if (!window.confirm(`Create ${validRows.length} student account${validRows.length === 1 ? '' : 's'}? Temporary credentials will be emailed to each student.`)) return;
+    if (!await confirmDialog(`Create ${validRows.length} student account${validRows.length === 1 ? '' : 's'}? Temporary credentials will be emailed to each student.`)) return;
     setCsvImporting(true);
     let created = 0;
     const failures = [];
@@ -1215,7 +1025,7 @@ function StudentTab() {
     setCsvImporting(false);
     setCsvRows([]);
     await loadStudents();
-    alert(`${created} student account${created === 1 ? '' : 's'} created.${failures.length ? ` ${failures.length} row${failures.length === 1 ? '' : 's'} failed:\n${failures.join('\n')}` : ''}`);
+    notify(`${created} student account${created === 1 ? '' : 's'} created.${failures.length ? ` ${failures.length} row${failures.length === 1 ? '' : 's'} failed:\n${failures.join('\n')}` : ''}`);
   }
 
   const grouped = students.reduce((acc, st) => {
@@ -1238,11 +1048,6 @@ function StudentTab() {
 
   return (
     <>
-      <div>
-        <div style={s.pageTitle}>Student Enrollment</div>
-        <div style={s.pageSub}>Create student accounts. Students select their own subjects after logging in.</div>
-      </div>
-
       <div style={{ ...s.panel, padding: 0, overflow: 'hidden' }}>
         <div style={s.tabNav}>
           {[
@@ -1493,7 +1298,7 @@ function CreateTermModal({ onClose, onCreated }) {
       onCreated();
       onClose();
     } catch (err) {
-      alert('Error: ' + (err.response?.data ? JSON.stringify(err.response.data) : err.message));
+      notify('Error: ' + (err.response?.data ? JSON.stringify(err.response.data) : err.message));
     } finally {
       setLoading(false);
     }
@@ -1681,7 +1486,7 @@ function ApprovalQueue() {
       await approveRejectEnrollments([...selected], action);
       await loadQueue();
     } catch (err) {
-      alert('Error: ' + (err.response?.data ? JSON.stringify(err.response.data) : err.message));
+      notify('Error: ' + (err.response?.data ? JSON.stringify(err.response.data) : err.message));
     } finally { setSubmitting(false); }
   }
 
@@ -2058,7 +1863,7 @@ function OfferingsTab() {
   async function handleAddOffering(e, subjectId) {
     e.preventDefault();
     const form = forms[subjectId];
-    if (!selTerm) { alert('Select a term first.'); return; }
+    if (!selTerm) { notify('Select a term first.'); return; }
 
     setSubmitting((prev) => ({ ...prev, [subjectId]: true }));
     try {
@@ -2078,7 +1883,7 @@ function OfferingsTab() {
       });
       setOfferings(data);
     } catch (err) {
-      alert('Error: ' + (err.response?.data ? JSON.stringify(err.response.data) : err.message));
+      notify('Error: ' + (err.response?.data ? JSON.stringify(err.response.data) : err.message));
     } finally {
       setSubmitting((prev) => ({ ...prev, [subjectId]: false }));
     }
@@ -2095,12 +1900,9 @@ function OfferingsTab() {
         />
       )}
 
-      <div>
-        <div style={s.pageTitle}>Subject Offerings</div>
-        <div style={s.pageSub}>
+      <PageHeader title="Subject Offerings" subtitle="
           Set the academic context, then manage offerings by subject.
-        </div>
-      </div>
+        " />
 
       <div style={{ ...s.panel, padding: 0, overflow: 'hidden' }}>
         <div style={s.tabNav}>
@@ -2490,7 +2292,7 @@ function UserManagementTab() {
       await adminUpdateUser(userId, { is_active: !isActive });
       await reloadUsers();
     } catch (err) {
-      alert('Failed to update user: ' + (err.response?.data ? JSON.stringify(err.response.data) : err.message));
+      notify('Failed to update user: ' + (err.response?.data ? JSON.stringify(err.response.data) : err.message));
     }
   }
 
@@ -2514,7 +2316,7 @@ function UserManagementTab() {
     if (!editingUser) return;
 
     if (!editingUser.first_name.trim() || !editingUser.last_name.trim() || !editingUser.email.trim()) {
-      alert('First name, last name, and email are required.');
+      notify('First name, last name, and email are required.');
       return;
     }
 
@@ -2529,43 +2331,37 @@ function UserManagementTab() {
       await reloadUsers();
       setEditingUser(null);
     } catch (err) {
-      alert('Failed to update user: ' + (err.response?.data ? JSON.stringify(err.response.data) : err.message));
+      notify('Failed to update user: ' + (err.response?.data ? JSON.stringify(err.response.data) : err.message));
     } finally {
       setEditSaving(false);
     }
   }
 
   async function deleteUser(userId, label) {
-    if (!confirm(`Delete ${label}? This will permanently remove the account and related profile data.`)) return;
+    if (!await confirmDialog(`Delete ${label}? This will permanently remove the account and related profile data.`)) return;
     try {
       await adminDeleteUser(userId);
       await reloadUsers();
     } catch (err) {
-      alert('Failed to delete user: ' + (err.response?.data ? JSON.stringify(err.response.data) : err.message));
+      notify('Failed to delete user: ' + (err.response?.data ? JSON.stringify(err.response.data) : err.message));
     }
   }
 
   async function removeStudentId(row) {
-    if (!confirm(`Remove the unregistered student ID ${row.student_id}? Nobody can sign up with it afterwards.`)) return;
+    if (!await confirmDialog(`Remove the unregistered student ID ${row.student_id}? Nobody can sign up with it afterwards.`)) return;
     try {
       await adminDeleteStudentRecord(row.id);
       await reloadUsers();
     } catch (err) {
-      alert('Failed to remove student ID: ' + (err.response?.data?.detail || err.message));
+      notify('Failed to remove student ID: ' + (err.response?.data?.detail || err.message));
     }
   }
 
   return (
     <>
-      <div>
-        <div style={s.pageTitle}>User Management</div>
-        <div style={s.pageSub}>Search, activate, and manage faculty/student accounts.</div>
-      </div>
-
       {editingUser && (
         <div style={{ ...s.panel, maxWidth: 420 }}>
           <PanelTitle>Edit User Account</PanelTitle>
-          <p style={s.hint}>Update the account details here instead of using pop-up prompts.</p>
           <form onSubmit={saveEditingUser} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ display: 'flex', gap: 8 }}>
               <Field label="First Name">
@@ -2849,7 +2645,7 @@ function GradeManagementTab() {
       console.error('Failed to load grades', err);
       const status = err.response?.status;
       const body = err.response?.data;
-      alert('Failed to load grades.' + (status ? ` Status ${status}.` : '') + (body ? ` Response: ${JSON.stringify(body)}` : ''));
+      notify('Failed to load grades.' + (status ? ` Status ${status}.` : '') + (body ? ` Response: ${JSON.stringify(body)}` : ''));
     } finally {
       setLoading(false);
     }
@@ -2867,7 +2663,7 @@ function GradeManagementTab() {
       await loadGrades();
     } catch (err) {
       const body = err.response?.data ? JSON.stringify(err.response.data) : err.message;
-      alert('Failed to update grade. ' + body);
+      notify('Failed to update grade. ' + body);
     } finally {
       setSavingId(null);
     }
@@ -2903,21 +2699,18 @@ function GradeManagementTab() {
     setPreviewRow(null);
   }
   async function handleDelete(row) {
-    if (!confirm('Delete this grade entry?')) return;
+    if (!await confirmDialog('Delete this grade entry?')) return;
     try {
       await deleteGrade(row.id);
       await loadGrades();
     } catch {
-      alert('Failed to delete grade.');
+      notify('Failed to delete grade.');
     }
   }
 
   return (
     <>
-      <div>
-        <div style={s.pageTitle}>Grade Overrides</div>
-        <div style={s.pageSub}>Search and adjust grade entries as an administrator.</div>
-      </div>
+      <PageHeader title="Grade Overrides" subtitle="Search and adjust grade entries as an administrator." />
 
       <div style={{ ...s.panel, width: '100%', flex: '0 0 auto', boxSizing: 'border-box' }}>
         <PanelTitle>Search Filters</PanelTitle>
@@ -3196,7 +2989,7 @@ function NotificationsTab() {
       setNotifications(data || []);
       setNotificationPage(1);
     } catch {
-      alert('Failed to load notifications.');
+      notify('Failed to load notifications.');
     } finally {
       setLoading(false);
     }
@@ -3216,10 +3009,7 @@ function NotificationsTab() {
 
   return (
     <>
-      <div>
-        <div style={s.pageTitle}>Notifications</div>
-        <div style={s.pageSub}>Recent system updates for admin actions, offerings, enrollment, and grades.</div>
-      </div>
+      <PageHeader title="Notifications" subtitle="Recent system updates for admin actions, offerings, enrollment, and grades." />
 
       <div style={{ ...s.panel, padding: 0, overflow: 'hidden' }}>
         <SectionHeader
@@ -3328,7 +3118,7 @@ function ReportsTab() {
 
     const win = window.open('', '_blank', 'width=1100,height=800');
     if (!win) {
-      alert('Popup blocked. Please allow popups to print the report.');
+      notify('Popup blocked. Please allow popups to print the report.');
       return;
     }
 
@@ -3413,7 +3203,7 @@ function ReportsTab() {
 
   function handleExportPdf() {
     if (!report) {
-      alert('Generate a report first.');
+      notify('Generate a report first.');
       return;
     }
 
@@ -3451,10 +3241,7 @@ function ReportsTab() {
 
   return (
     <>
-      <div>
-        <div style={s.pageTitle}>Reports</div>
-        <div style={s.pageSub}>Generate grade summary reports and export files.</div>
-      </div>
+      <PageHeader title="Reports" subtitle="Generate grade summary reports and export files." />
 
       <div style={{ ...s.panel, width: '100%', flex: '0 0 auto', boxSizing: 'border-box' }}>
         <div style={{
@@ -3616,7 +3403,7 @@ function AuditLogTab() {
       setLogs(data || []);
       setLogPage(1);
     } catch {
-      alert('Failed to load audit logs.');
+      notify('Failed to load audit logs.');
     } finally {
       setLoading(false);
     }
@@ -3660,10 +3447,7 @@ function AuditLogTab() {
 
   return (
     <>
-      <div>
-        <div style={s.pageTitle}>Audit Logs</div>
-        <div style={s.pageSub}>Review administrative actions, account changes, and grade activity.</div>
-      </div>
+      <PageHeader title="Audit Logs" subtitle="Review administrative actions, account changes, and grade activity." />
 
       <div style={{ ...s.panel, width: '100%', boxSizing: 'border-box', padding: 0, overflow: 'hidden' }}>
         <SectionHeader
@@ -3723,7 +3507,7 @@ function AuditLogTab() {
                 title="Refresh audit logs"
                 aria-label="Refresh audit logs"
               >
-                ↻
+                <Icon name="refresh" size={14} />
               </button>
               {activeFilterCount > 0 && (
                 <button
@@ -3836,22 +3620,51 @@ function AuditLogTab() {
 }
 
 //  Main component
-const TABS = [
-  { key: 'school',    label: 'School Setup',       icon: '🏫' },
-  { key: 'teacher',   label: 'Add Teacher',        icon: '👨‍🏫' },
-  { key: 'student',   label: 'Add Student',        icon: '🎓' },
-  { key: 'offerings', label: 'Subject Offerings',  icon: '📅' },
-  { key: 'users',     label: 'User Management',    icon: '🧑' },
-  { key: 'grades',    label: 'Grade Overrides',    icon: '🧾' },
-  { key: 'reports',   label: 'Reports',            icon: '📈' },
-  { key: 'notifications', label: 'Notifications',  icon: '🔔' },
-  { key: 'audit',     label: 'Audit Logs',         icon: '🕵️' },
+// Teachers, students and the user directory used to be three separate sidebar tabs
+// ("Add Teacher", "Add Student", "User Management") over the same people.
+const PEOPLE_TABS = [
+  { key: 'teachers', label: 'Teachers' },
+  { key: 'students', label: 'Students' },
+  { key: 'users',    label: 'All Users' },
 ];
 
+function PeopleTab() {
+  const [sub, setSub] = useState('teachers');
+  return (
+    <>
+      <div className="subtabs" role="tablist">
+        {PEOPLE_TABS.map((tab) => (
+          <button
+            key={tab.key}
+            type="button"
+            role="tab"
+            aria-selected={sub === tab.key}
+            className={`subtab${sub === tab.key ? ' active' : ''}`}
+            onClick={() => setSub(tab.key)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+      {sub === 'teachers' && <TeacherTab />}
+      {sub === 'students' && <StudentTab />}
+      {sub === 'users'    && <UserManagementTab />}
+    </>
+  );
+}
+
+//  Main component
+const TABS = [
+  { key: 'school',    label: 'School Setup',      icon: 'school' },
+  { key: 'people',    label: 'People',            icon: 'people' },
+  { key: 'offerings', label: 'Subject Offerings', icon: 'calendar' },
+  { key: 'grades',    label: 'Grade Overrides',   icon: 'grades' },
+  { key: 'reports',   label: 'Reports',           icon: 'chart' },
+  { key: 'audit',     label: 'Audit Logs',        icon: 'audit' },
+];
 
 export default function AdminHome() {
   const navigate = useNavigate();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [activeTab, setActiveTab] = useState('school');
 
   async function handleLogout() {
@@ -3860,42 +3673,33 @@ export default function AdminHome() {
     } catch (err) {
       console.warn('logout request failed, clearing local session anyway', err);
     } finally {
-      navigate('/');
+      navigate('/login');
     }
   }
 
   return (
-    <div style={s.root}>
-      <div className={`dashboard-sidebar${sidebarCollapsed ? ' collapsed' : ''}`} style={{ ...s.sidebar, width: sidebarCollapsed ? 72 : 220 }}>
-        <button type="button" aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} onClick={() => setSidebarCollapsed((value) => !value)} style={{ ...s.logo, justifyContent: sidebarCollapsed ? 'center' : 'flex-start', padding: sidebarCollapsed ? '10px 0' : '10px 14px', width: '100%', border: 0, background: 'transparent', cursor: 'pointer' }}>
-          <img src={Logo} alt="Alliance Team Titans logo" style={s.logoImg} />
-          {!sidebarCollapsed && <span>ADMIN PANEL</span>}
-        </button>
-        {!sidebarCollapsed && <div style={s.navLabel}>Management</div>}
-        {TABS.map((tab) => (
-          <button className="sidebar-nav-action" key={tab.key} title={tab.label} aria-label={tab.label} style={{ ...s.pillBtn(activeTab === tab.key), justifyContent: sidebarCollapsed ? 'center' : 'flex-start', padding: sidebarCollapsed ? '10px 0' : '10px 14px' }} onClick={() => setActiveTab(tab.key)}>
-            <span style={{ fontSize: 15, width: 18, textAlign: 'center', flexShrink: 0 }}>{tab.icon}</span>
-            {!sidebarCollapsed && tab.label}
-          </button>
-        ))}
-        <div style={s.sidebarFooter}>
-          <button className="sidebar-logout" title="Log out" aria-label="Log out" onClick={handleLogout} style={{ ...s.pillBtn(false), color: c.danger, border: `1px solid ${c.dangerBorder}`, justifyContent: sidebarCollapsed ? 'center' : 'flex-start', padding: sidebarCollapsed ? '10px 0' : '10px 14px' }}>
-            <span style={{ fontSize: 14, width: 18, textAlign: 'center' }}>⏻</span>
-            {!sidebarCollapsed && 'Log Out'}
-          </button>
-        </div>
-      </div>
-      <div style={s.main}>
-        {activeTab === 'school'    && <SchoolTab />}
-        {activeTab === 'teacher'   && <TeacherTab />}
-        {activeTab === 'student'   && <StudentTab />}
-        {activeTab === 'offerings' && <OfferingsTab />}
-        {activeTab === 'users'     && <UserManagementTab />}
-        {activeTab === 'grades'    && <GradeManagementTab />}
-        {activeTab === 'reports'   && <ReportsTab />}
-        {activeTab === 'notifications' && <NotificationsTab />}
-        {activeTab === 'audit'     && <AuditLogTab />}
-      </div>
-    </div>
+    <DashboardLayout
+      portalLabel="ADMIN PANEL"
+      navLabel="Management"
+      tabs={TABS}
+      activeTab={activeTab}
+      onTabChange={setActiveTab}
+      onLogout={handleLogout}
+      topBar={
+        <NotificationBell
+          fetchItems={() => fetchNotifications()}
+          onViewAll={() => setActiveTab('notifications')}
+        />
+      }
+    >
+      {activeTab === 'school'        && <SchoolTab />}
+      {activeTab === 'people'        && <PeopleTab />}
+      {activeTab === 'offerings'     && <OfferingsTab />}
+      {activeTab === 'grades'        && <GradeManagementTab />}
+      {activeTab === 'reports'       && <ReportsTab />}
+      {activeTab === 'audit'         && <AuditLogTab />}
+      {/* Opened from the bell's "View all"; not a sidebar item. */}
+      {activeTab === 'notifications' && <NotificationsTab />}
+    </DashboardLayout>
   );
 }

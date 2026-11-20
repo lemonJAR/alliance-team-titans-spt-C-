@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { requestPasswordReset } from '../controllers/accountController';
+import Icon from "../components/Icons";
 import Logo from '../assets/Logo.png';
 
 export default function ForgotPassword() {
@@ -32,6 +33,7 @@ export default function ForgotPassword() {
           <div className="login-field">
             <label className="login-label">Email</label>
             <div className="login-input">
+              <span className="login-icon"><Icon name="mail" size={16} /></span>
               <input
                 className="login-text"
                 type="email"

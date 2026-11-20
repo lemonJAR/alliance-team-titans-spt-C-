@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { confirmPasswordReset } from '../controllers/accountController';
+import Icon from '../components/Icons';
 import Logo from '../assets/Logo.png';
 
 export default function ResetPassword() {
@@ -43,6 +44,7 @@ export default function ResetPassword() {
           <div className="login-field">
             <label className="login-label">New Password</label>
             <div className="login-input">
+              <span className="login-icon"><Icon name="lock" size={16} /></span>
               <input
                 className="login-text"
                 type="password"
@@ -56,6 +58,7 @@ export default function ResetPassword() {
           <div className="login-field">
             <label className="login-label">Confirm Password</label>
             <div className="login-input">
+              <span className="login-icon"><Icon name="lock" size={16} /></span>
               <input
                 className="login-text"
                 type="password"

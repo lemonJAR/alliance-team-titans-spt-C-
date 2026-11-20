@@ -38,6 +38,12 @@
   --app-shadow-md: 0 18px 42px rgba(15, 23, 42, 0.12);
   --app-shadow-lg: 0 30px 70px rgba(15, 23, 42, 0.16);
 
+  /* aliases for names referenced by VerifyEmail / SignUp that were never defined */
+  --moss: var(--app-accent);
+  --fern: var(--app-success);
+  --muted: var(--app-muted);
+  --error: var(--app-danger);
+
   --sans: 'Space Grotesk', 'DM Sans', 'Segoe UI', sans-serif;
   --heading: 'Space Grotesk', 'DM Sans', 'Segoe UI', sans-serif;
   --mono: ui-monospace, Consolas, monospace;
@@ -100,9 +106,6 @@
     color-scheme: dark;
   }
 
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
 }
 
 @media (prefers-color-scheme: light) {
@@ -113,14 +116,12 @@
     --app-text: #0f172a;
     --app-muted: #475569;
     --app-border: rgba(148, 163, 184, 0.6);
-    --app-accent: #16a34a;
-    --app-accent-soft: rgba(22, 163, 74, 0.18);
-    --app-accent-bg: rgba(22, 163, 74, 0.12);
   }
 }
 
 body {
   margin: 0;
+  font-family: var(--sans);
   min-height: 100vh;
   background: var(--app-bg-gradient);
   color: var(--app-text);

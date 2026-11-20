@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { signIn } from "../controllers/authController";
+import Icon from "../components/Icons";
 import Logo from "../assets/Logo.png";
 
 const initialForm = { email: "", password: "" };
@@ -60,17 +61,16 @@ export default function Login() {
   return (
     <div className="login-shell">
       <div className="login-card">
-        <Link to="/">
-          <img className="brand-logo" src={Logo} alt="Alliance Team Titans logo" />
-        </Link>
+        <img className="brand-logo" src={Logo} alt="Alliance Team Titans logo" />
+        <div className="eyebrow">Student Performance Tracker</div>
         <h1 className="login-title">Sign in</h1>
-        <p className="login-sub">Use your school account to continue.</p>
+        <p className="login-sub">Students, teachers and admins all sign in here. Your dashboard is assigned automatically.</p>
 
         <form onSubmit={handleSubmit}>
           <div className="login-field">
             <label className="login-label">Email</label>
             <div className="login-input">
-              <span className="login-icon">@</span>
+              <span className="login-icon"><Icon name="mail" size={16} /></span>
               <input
                 className={`login-text ${errors.email ? "finput-error" : ""}`}
                 type="email"
@@ -85,7 +85,7 @@ export default function Login() {
           <div className="login-field">
             <label className="login-label">Password</label>
             <div className="login-input">
-              <span className="login-icon">*</span>
+              <span className="login-icon"><Icon name="lock" size={16} /></span>
               <input
                 className={`login-text ${errors.password ? "finput-error" : ""}`}
                 type="password"
@@ -107,20 +107,14 @@ export default function Login() {
             </button>
         </form>
 
-        <p className="footer-text login-help">
-            <Link to="/forgot-password" className="link">Forgot password?</Link>
-        </p>
-
-        <div className="or-line">or</div>
-
-        <p className="footer-text">
-            Need an account?{" "}
-            <Link to="/signup" className="link">Create one</Link>
-        </p>
-        <p className="footer-text login-secondary-link">
-            Need to verify your email?{" "}
-            <Link to="/verify-email/resend" className="link">Resend the link</Link>
-        </p>
+        <div className="login-links">
+          <p className="footer-text"><Link to="/forgot-password" className="link">Forgot password?</Link></p>
+          <p className="footer-text">
+            New here? <Link to="/signup" className="link">Create an account</Link>
+            {" · "}
+            <Link to="/verify-email/resend" className="link">Resend verification email</Link>
+          </p>
+        </div>
       </div>
     </div>
   );
