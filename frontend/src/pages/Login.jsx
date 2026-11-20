@@ -61,7 +61,9 @@ export default function Login() {
   return (
     <div className="login-shell">
       <div className="login-card">
-        <img className="brand-logo" src={Logo} alt="Alliance Team Titans logo" />
+        <Link to="/">
+          <img className="brand-logo" src={Logo} alt="Alliance Team Titans logo" />
+        </Link>
         <div className="eyebrow">Student Performance Tracker</div>
         <h1 className="login-title">Sign in</h1>
         <p className="login-sub">Students, teachers and admins all sign in here. Your dashboard is assigned automatically.</p>

@@ -67,7 +67,7 @@ export default function VerifyEmail() {
         className="salita-root"
         style={{ alignItems: "center", justifyContent: "center" }}
       >
-        <div className="card" style={{ maxWidth: 380, textAlign: "center" }}>
+        <div className="card" style={{ width: "100%", maxWidth: 400, textAlign: "center" }}>
           <img className="brand-logo" src={Logo} alt="Alliance Team Titans logo" />
           <div
             className="status-icon loading"
@@ -104,7 +104,7 @@ export default function VerifyEmail() {
         className="salita-root"
         style={{ alignItems: "center", justifyContent: "center" }}
       >
-        <div className="card" style={{ maxWidth: 380, textAlign: "center" }}>
+        <div className="card" style={{ width: "100%", maxWidth: 400, textAlign: "center" }}>
           <img className="brand-logo" src={Logo} alt="Alliance Team Titans logo" />
           <div
             className="status-icon success"
@@ -142,9 +142,11 @@ export default function VerifyEmail() {
   // ── Error / Resend ─────────────────────────────────────
   return (
     <div
+      className="salita-root"
       style={{ alignItems: "center", justifyContent: "center" }}
     >
-      <div className="card" style={{ maxWidth: 400, textAlign: "center" }}>
+      <div className="card" style={{ width: "100%", maxWidth: 400, textAlign: "center" }}>
+        <img className="brand-logo" src={Logo} alt="Alliance Team Titans logo" />
         <div
           className="status-icon error"
           style={{ margin: "0 auto 1.5rem" }}
