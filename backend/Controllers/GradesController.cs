@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SptApi.Data;
+using SptApi.Dtos;
 using SptApi.Models;
 using SptApi.Services;
 
@@ -18,10 +19,12 @@ namespace SptApi.Controllers;
 //   Student    - read own grades, own timeline, export own CSV
 //   Professor  - enter / edit / delete grades for students in THEIR OWN sections
 //   Admin      - read everything, edit and delete any grade (grade override)
+//
+// Read-only queries (own grades, history, timeline) are delegated to GradeQueryService.
 [ApiController]
 [Route("api/system/grades")]
 [Authorize]
-public class GradesController(SptDbContext db, AuditService audit) : ControllerBase
+public class GradesController(SptDbContext db, AuditService audit, GradeQueryService gradeQueries) : ControllerBase
 {
     private const string StaffRoles = Roles.Professor + "," + Roles.Admin;
 
@@ -30,19 +33,12 @@ public class GradesController(SptDbContext db, AuditService audit) : ControllerB
     // GET /api/system/grades/mine/
     [HttpGet("mine")]
     [Authorize(Roles = Roles.Student)]
-    public async Task<IActionResult> GetMine()
+    public async Task<ActionResult<List<GradeDto>>> GetMine()
     {
-        var student = await CurrentStudent();
+        var student = await gradeQueries.FindStudentAsync(User.UserId());
         if (student is null) return NotFound(new { detail = "No student profile for this account." });
 
-        var rows = await WithDetails()
-            .Where(g => g.Enrollment.StudentId == student.Id)
-            .OrderByDescending(g => g.Enrollment.Term.SchoolYear)
-            .ThenByDescending(g => g.Enrollment.Term.Semester)
-            .ThenBy(g => g.Enrollment.Subject.Code)
-            .ToListAsync();
-
-        return Ok(rows.Select(ToDto));
+        return Ok(await gradeQueries.GetStudentGradesAsync(student));
     }
 
     // GET /api/system/grades/?offering=&student=&term=&subject=&period=prelim|midterm|finals
@@ -85,56 +81,33 @@ public class GradesController(SptDbContext db, AuditService audit) : ControllerB
 
     // GET /api/system/grades/{id}/history/
     [HttpGet("{id:int}/history")]
-    public async Task<IActionResult> GetHistory(int id)
+    public async Task<ActionResult<List<GradeHistoryDto>>> GetHistory(int id)
     {
-        var grade = await WithDetails().FirstOrDefaultAsync(g => g.Id == id);
+        var history = await gradeQueries.GetGradeHistoryAsync(id, User.UserId(), User.UserRole());
+        if (history is null) return NotFound(new { detail = "Grade not found." });
 
-        if (grade is null)
-        {
-            // A deleted grade has no owner to check, so only admins may still read its trail.
-            if (!IsAdmin) return NotFound(new { detail = "Grade not found." });
-        }
-        else if (!await CanRead(grade))
-        {
-            return NotFound(new { detail = "Grade not found." });
-        }
-
-        var history = await db.GradeHistories.Where(h => h.GradeId == id)
-            .OrderByDescending(h => h.ChangedAt).ThenByDescending(h => h.Id).ToListAsync();
-        return Ok(await ToHistoryDtos(history));
+        return Ok(history);
     }
 
     // GET /api/system/grades/timeline/?student=
     // Student: own history. Professor: history of their own sections. Admin: everything (optionally one student).
     [HttpGet("timeline")]
-    public async Task<IActionResult> GetTimeline([FromQuery] int? student)
+    public async Task<ActionResult<List<GradeHistoryDto>>> GetTimeline([FromQuery] int? student)
     {
-        var grades = db.Grades.AsQueryable();
-
         if (IsAdmin)
+            return Ok(await gradeQueries.GetTimelineForAdminAsync(student));
+
+        if (IsProfessor)
         {
-            if (student != null) grades = grades.Where(g => g.Enrollment.StudentId == student);
-        }
-        else if (IsProfessor)
-        {
-            var teacher = await CurrentTeacher();
+            var teacher = await gradeQueries.FindTeacherAsync(User.UserId());
             if (teacher is null) return NotFound(new { detail = "No teacher profile for this account." });
-            grades = grades.Where(g => g.Enrollment.Offering != null && g.Enrollment.Offering.TeacherId == teacher.Id);
-            if (student != null) grades = grades.Where(g => g.Enrollment.StudentId == student);
-        }
-        else
-        {
-            var me = await CurrentStudent();
-            if (me is null) return NotFound(new { detail = "No student profile for this account." });
-            grades = grades.Where(g => g.Enrollment.StudentId == me.Id);
+            return Ok(await gradeQueries.GetTimelineForTeacherAsync(teacher, student));
         }
 
-        var gradeIds = grades.Select(g => g.Id);
-        var history = await db.GradeHistories.Where(h => gradeIds.Contains(h.GradeId))
-            .OrderByDescending(h => h.ChangedAt).ThenByDescending(h => h.Id)
-            .Take(200).ToListAsync();
-
-        return Ok(await ToHistoryDtos(history));
+        // Students only ever get their own history; ?student= is ignored.
+        var me = await gradeQueries.FindStudentAsync(User.UserId());
+        if (me is null) return NotFound(new { detail = "No student profile for this account." });
+        return Ok(await gradeQueries.GetTimelineForStudentAsync(me));
     }
 
     // GET /api/system/grades/export/   the student's own grades as a CSV file
@@ -341,14 +314,6 @@ public class GradesController(SptDbContext db, AuditService audit) : ControllerB
         return teacher != null && enrollment.Offering?.TeacherId == teacher.Id;
     }
 
-    private async Task<bool> CanRead(Grade grade)
-    {
-        if (await CanManage(grade.Enrollment)) return true;
-        if (User.UserRole() != Roles.Student) return false;
-        var me = await CurrentStudent();
-        return me != null && grade.Enrollment.StudentId == me.Id;
-    }
-
     // Professors can only change grades in the active term; admins can override any term (grade override).
     private bool TermIsOpenForEditing(Enrollment enrollment) => IsAdmin || enrollment.Term.IsActive;
 
@@ -391,69 +356,7 @@ public class GradesController(SptDbContext db, AuditService audit) : ControllerB
     private static decimal? Norm(decimal? v) =>
         v is null ? null : decimal.Parse(v.Value.ToString("0.00", CultureInfo.InvariantCulture), CultureInfo.InvariantCulture);
 
-    private static object ToDto(Grade g)
-    {
-        var e = g.Enrollment;
-        var u = e.Student.User;
-        return new
-        {
-            id = g.Id,
-            enrollment_id = g.EnrollmentId,
-            student = e.StudentId,                          // students.id
-            student_id_no = e.Student.StudentIdNo,
-            student_name = u is null ? e.Student.StudentIdNo : $"{u.LastName}, {u.FirstName}",
-            subject = e.SubjectId,
-            subject_id = e.SubjectId,
-            subject_code = e.Subject.Code,
-            subject_name = e.Subject.Name,
-            units = e.Subject.Units,
-            year_level = e.Subject.YearLevel,
-            semester = e.Subject.Semester,
-            term = e.TermId,
-            term_label = $"{e.Term.SchoolYear} - Sem {e.Term.Semester}",
-            offering = e.OfferingId,
-            offer_code = e.Offering?.OfferCode,
-            prelim = g.Prelim,
-            midterm = g.Midterm,
-            finals = g.Finals,
-            remarks = g.Remarks,
-            entered_by = g.EnteredBy,
-            created_at = g.CreatedAt,
-            updated_at = g.UpdatedAt
-        };
-    }
-
-    private async Task<List<object>> ToHistoryDtos(List<GradeHistory> history)
-    {
-        var userIds = history.Select(h => h.ChangedBy).Distinct().ToList();
-        var names = await db.Users.Where(u => userIds.Contains(u.Id))
-            .ToDictionaryAsync(u => u.Id, u => $"{u.FirstName} {u.LastName}");
-
-        return history.Select(h =>
-        {
-            var oldValues = ParseJson(h.OldValues);
-            var newValues = ParseJson(h.NewValues);
-            return (object)new
-            {
-                id = h.Id,
-                grade = h.GradeId,
-                action = h.Action,
-                changed_by = h.ChangedBy,
-                changed_by_name = names.GetValueOrDefault(h.ChangedBy),
-                old_values = oldValues,
-                new_values = newValues,
-                current = newValues ?? oldValues,          // what the student page shows as "remarks"
-                created_at = h.ChangedAt
-            };
-        }).ToList();
-    }
-
-    private static JsonElement? ParseJson(string? json)
-    {
-        if (string.IsNullOrWhiteSpace(json)) return null;
-        try { return JsonSerializer.Deserialize<JsonElement>(json); }
-        catch (JsonException) { return null; }
-    }
+    private static GradeDto ToDto(Grade g) => GradeDto.From(g);
 
     // ───── request body readers (JsonObject lets us tell "field missing" from "field set to null") ─────
 

@@ -10,13 +10,16 @@ import {
   getApprovedForSchedule,
   selectSchedule,
   fetchTerms,
-  getMyGrades,
   exportMyGrades,
   changePassword,
-  fetchGradeTimeline,
   fetchNotifications,
   markNotificationsRead,
 } from '../controllers/studentController';
+import {
+  loadMyGradeRecords,
+  loadGradeTimeline,
+  mergeEnrolledSubjects,
+} from '../controllers/gradeRecordsController';
 import { signOut } from '../controllers/authController';
 import DashboardLayout from '../components/DashboardLayout';
 import { notify } from '../components/toastBus';
@@ -547,18 +550,18 @@ function GradesTab() {
   const pageSize = 8;
 
   useEffect(() => {
-    Promise.all([getMyGrades(), getMyProspectus()])
-      .then(([gradesRes, prosRes]) => {
-        setGrades(gradesRes.data);
-        setProspectus(prosRes.data);
+    loadMyGradeRecords()
+      .then((records) => {
+        setGrades(records.grades);
+        setProspectus(records.prospectus);
       })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
-    fetchGradeTimeline()
-      .then(({ data }) => setTimeline(data))
+    loadGradeTimeline()
+      .then(setTimeline)
       .catch(console.error)
       .finally(() => setTimelineLoading(false));
   }, []);
@@ -584,33 +587,7 @@ function GradesTab() {
   }, {});
   const visible = Object.keys(paginatedGrouped).sort().reverse();
 
-  const enrolledMap = new Map();
-
-  prospectus.forEach((p) => {
-    if (p.request_status === 'ENROLLED') {
-      enrolledMap.set(p.subject_id, {
-        ...p,
-        source: 'prospectus',
-      });
-    }
-  });
-
-  grades.forEach((g) => {
-    if (enrolledMap.has(g.subject_id)) {
-      enrolledMap.set(g.subject_id, {
-        ...enrolledMap.get(g.subject_id),
-        ...g,
-        source: 'merged',
-      });
-    } else {
-      enrolledMap.set(g.subject_id, {
-        ...g,
-        source: 'grades-only',
-      });
-    }
-  });
-
-  const syncedEnrolled = Array.from(enrolledMap.values());
+  const syncedEnrolled = mergeEnrolledSubjects(prospectus, grades);
   const enrolledPages = Math.max(1, Math.ceil(syncedEnrolled.length / pageSize));
   const visibleEnrolled = syncedEnrolled.slice((enrolledPage - 1) * pageSize, enrolledPage * pageSize);
   const timelinePages = Math.max(1, Math.ceil(timeline.length / pageSize));

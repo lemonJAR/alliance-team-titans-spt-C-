@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import {
   addCollege, addDegreeProgram, addSubject,
   fetchCollege, fetchProgram, fetchSubjects,
@@ -12,10 +10,13 @@ import {
   fetchTeachers as fetchAllTeachers,
   getEnrollmentQueue, approveRejectEnrollments,
   fetchGrades, updateGrade, deleteGrade,
-  fetchGradeReport, exportGradeReportCsv, exportGradeReportExcel,
   fetchAuditLogs, adminUpdateUser, adminDeleteUser, adminDeleteStudentRecord,
   fetchNotifications,
 } from '../controllers/adminController';
+import {
+  generateReport, exportReportPdf, exportReportCsv, exportReportExcel, printReport,
+} from '../controllers/reportController';
+import { EMPTY_REPORT_FILTERS } from '../models/report';
 import { signOut } from '../controllers/authController';
 import Icon from '../components/Icons';
 import DashboardLayout from '../components/DashboardLayout';
@@ -3089,18 +3090,8 @@ function NotificationsTab() {
 }
 
 
-// Report values include text typed by users (remarks, names, subject titles). Escape before writing HTML.
-function escapeHtml(value) {
-  return String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
 function ReportsTab() {
-  const [filters, setFilters] = useState({ term: '', program: '', year_level: '', student: '', subject: '' });
+  const [filters, setFilters] = useState(EMPTY_REPORT_FILTERS);
   const [report, setReport] = useState(null);
   const [programs, setPrograms] = useState([]);
 
@@ -3109,96 +3100,20 @@ function ReportsTab() {
   }, []);
 
   async function loadReport() {
-    const { data } = await fetchGradeReport(filters);
-    setReport(data);
+    setReport(await generateReport(filters));
   }
 
   function handlePrint() {
     if (!report) return;
-
-    const win = window.open('', '_blank', 'width=1100,height=800');
-    if (!win) {
-      notify('Popup blocked. Please allow popups to print the report.');
-      return;
-    }
-
-    const rows = (report.results || []).map((row) => `
-      <tr>
-        <td>${escapeHtml(row.student_id_no || row.student || '--')}</td>
-        <td>${escapeHtml(row.student_name || '--')}</td>
-        <td>${escapeHtml(row.subject_code || '--')}</td>
-        <td>${escapeHtml(row.subject_name || '--')}</td>
-        <td>${escapeHtml(row.term_label || row.term || '--')}</td>
-        <td>${escapeHtml(row.prelim ?? '--')}</td>
-        <td>${escapeHtml(row.midterm ?? '--')}</td>
-        <td>${escapeHtml(row.finals ?? '--')}</td>
-        <td>${escapeHtml(row.remarks || '--')}</td>
-      </tr>
-    `).join('');
-
-    win.document.write(`
-      <html>
-        <head>
-          <title>Grade Report</title>
-          <style>
-            body { font-family: Arial, sans-serif; padding: 24px; color: #111827; }
-            h1 { margin: 0 0 8px; font-size: 22px; }
-            .meta { color: #4b5563; font-size: 12px; margin-bottom: 18px; }
-            .stats { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
-            .card { border: 1px solid #d1d5db; border-radius: 8px; padding: 12px 14px; min-width: 110px; }
-            .label { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: #6b7280; }
-            .value { font-size: 22px; font-weight: 700; margin-top: 6px; }
-            table { width: 100%; border-collapse: collapse; font-size: 12px; }
-            th, td { border: 1px solid #d1d5db; padding: 8px 10px; text-align: left; vertical-align: top; }
-            th { background: #f3f4f6; }
-          </style>
-        </head>
-        <body>
-          <h1>Grade Summary Report</h1>
-          <div class="meta">Generated ${new Date().toLocaleString()}</div>
-          <div class="stats">
-            <div class="card"><div class="label">Total</div><div class="value">${report.summary.total}</div></div>
-            <div class="card"><div class="label">Graded</div><div class="value">${report.summary.graded}</div></div>
-            <div class="card"><div class="label">Passing</div><div class="value">${report.summary.passing}</div></div>
-            <div class="card"><div class="label">Failing</div><div class="value">${report.summary.failing}</div></div>
-          </div>
-          <table>
-            <thead>
-              <tr>
-                <th>Student ID</th><th>Student</th><th>Code</th><th>Subject</th><th>Term</th><th>Prelim</th><th>Midterm</th><th>Finals</th><th>Remarks</th>
-              </tr>
-            </thead>
-            <tbody>${rows || '<tr><td colspan="9">No rows found.</td></tr>'}</tbody>
-          </table>
-          <script>window.onload = () => { window.print(); window.close(); };</script>
-        </body>
-      </html>
-    `);
-    win.document.close();
+    if (!printReport(report)) notify('Popup blocked. Please allow popups to print the report.');
   }
 
   async function handleExportCsv() {
-    const res = await exportGradeReportCsv(filters);
-    const url = window.URL.createObjectURL(new Blob([res.data]));
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'grade_report.csv';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    window.URL.revokeObjectURL(url);
+    await exportReportCsv(filters);
   }
 
   async function handleExportExcel() {
-    const res = await exportGradeReportExcel(filters);
-    const url = window.URL.createObjectURL(new Blob([res.data]));
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'grade_report.xlsx';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    window.URL.revokeObjectURL(url);
+    await exportReportExcel(filters);
   }
 
   function handleExportPdf() {
@@ -3206,37 +3121,7 @@ function ReportsTab() {
       notify('Generate a report first.');
       return;
     }
-
-    const doc = new jsPDF({ orientation: 'landscape' });
-    doc.setFontSize(14);
-    doc.text('Grade Summary Report', 14, 14);
-    doc.setFontSize(10);
-    doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 20);
-    doc.text(
-      `Total: ${report.summary.total} | Graded: ${report.summary.graded} | Passing: ${report.summary.passing} | Failing: ${report.summary.failing}`,
-      14,
-      26,
-    );
-
-    autoTable(doc, {
-      startY: 32,
-      head: [['Student ID', 'Student', 'Code', 'Subject', 'Term', 'Prelim', 'Midterm', 'Finals', 'Remarks']],
-      body: (report.results || []).map((row) => [
-        row.student_id_no || row.student || '--',
-        row.student_name || '--',
-        row.subject_code || '--',
-        row.subject_name || '--',
-        row.term_label || row.term || '--',
-        row.prelim ?? '--',
-        row.midterm ?? '--',
-        row.finals ?? '--',
-        row.remarks || '--',
-      ]),
-      styles: { fontSize: 8.5, cellPadding: 2 },
-      headStyles: { fillColor: [30, 35, 53] },
-    });
-
-    doc.save('grade_report.pdf');
+    exportReportPdf(report);
   }
 
   return (

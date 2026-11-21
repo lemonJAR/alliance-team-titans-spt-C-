@@ -20,6 +20,8 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<AuditService>();
 builder.Services.AddScoped<EmailTokenService>();
+builder.Services.AddScoped<GradeQueryService>();
+builder.Services.AddScoped<ReportService>();
 builder.Services.AddSingleton<IEmailSender, ConsoleEmailSender>();   // swap for a real sender later
 
 // ── JWT authentication ──
