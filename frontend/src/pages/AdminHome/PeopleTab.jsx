@@ -28,7 +28,15 @@ const PEOPLE_TABS = [
 ];
 
 export function PeopleTab() {
-  const [sub, setSub] = useState('teachers');
+  const [sub, setSub] = useState(() => {
+    const saved = window.sessionStorage.getItem('admin_people_subtab');
+    return PEOPLE_TABS.some((tab) => tab.key === saved) ? saved : 'teachers';
+  });
+
+  const changeSubTab = (tab) => {
+    setSub(tab);
+    window.sessionStorage.setItem('admin_people_subtab', tab);
+  };
   return (
     <>
       <div className="subtabs" role="tablist">
@@ -39,7 +47,7 @@ export function PeopleTab() {
             role="tab"
             aria-selected={sub === tab.key}
             className={`subtab${sub === tab.key ? ' active' : ''}`}
-            onClick={() => setSub(tab.key)}
+            onClick={() => changeSubTab(tab.key)}
           >
             {tab.label}
           </button>

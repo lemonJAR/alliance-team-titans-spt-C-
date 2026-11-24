@@ -29,12 +29,24 @@ export function TeacherTab() {
   const [subjects, setSubjects] = useState([]);
   const [teachers, setTeachers]       = useState([]);
   const [loading, setLoading]         = useState(false);
-  const [filterDept, setFilterDept]   = useState('');
-  const [activeFacultyTab, setActiveFacultyTab] = useState('manual');
+  const [filterDept, setFilterDept] = useState(() => window.sessionStorage.getItem('admin_teacher_department') || '');
+  const [activeFacultyTab, setActiveFacultyTab] = useState(() =>
+    window.sessionStorage.getItem('admin_teacher_subtab') === 'directory' ? 'directory' : 'manual'
+  );
   const csvInputRef = useRef(null);
   const [csvRows, setCsvRows] = useState([]);
   const [csvError, setCsvError] = useState('');
   const [csvImporting, setCsvImporting] = useState(false);
+
+  const changeFacultyTab = (tab) => {
+    setActiveFacultyTab(tab);
+    window.sessionStorage.setItem('admin_teacher_subtab', tab);
+  };
+
+  const changeDepartmentFilter = (department) => {
+    setFilterDept(department);
+    window.sessionStorage.setItem('admin_teacher_department', department);
+  };
 
   const set = (field, value) => setForm((f) => ({ ...f, [field]: value }));
 
@@ -176,7 +188,7 @@ export function TeacherTab() {
             { key: 'manual', label: 'New Faculty Account' },
             { key: 'directory', label: 'Faculty by Department' },
           ].map((tab) => (
-            <button key={tab.key} type="button" onClick={() => setActiveFacultyTab(tab.key)} style={s.tabButton(activeFacultyTab === tab.key)}>
+            <button key={tab.key} type="button" onClick={() => changeFacultyTab(tab.key)} style={s.tabButton(activeFacultyTab === tab.key)}>
               {tab.label}
             </button>
           ))}
@@ -286,7 +298,7 @@ export function TeacherTab() {
                 <PanelTitle>Faculty by Department</PanelTitle>
                 <div style={{ marginLeft: 'auto' }}>
                   <select style={{ ...s.input, width: 'auto', fontSize: 12, padding: '6px 10px' }}
-                    value={filterDept} onChange={(e) => setFilterDept(e.target.value)}>
+                    value={filterDept} onChange={(e) => changeDepartmentFilter(e.target.value)}>
                     <option value="">All Departments</option>
                     {Object.keys(grouped).map((department) => (
                       <option key={department} value={department}>{department}</option>
@@ -306,7 +318,7 @@ export function TeacherTab() {
                       <button
                         key={department}
                         type="button"
-                        onClick={() => setFilterDept(department)}
+                        onClick={() => changeDepartmentFilter(department)}
                         style={{
                           ...s.submitBtn(false),
                           marginTop: 0,

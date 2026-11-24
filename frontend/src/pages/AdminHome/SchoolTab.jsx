@@ -29,6 +29,9 @@ export function SchoolTab() {
   const [subject, setSubject] = useState({ program: '', name: '', code: '', year_level: '1', semester: '1', units: '3', prerequisites: [] });
   const [semload, setSemload] = useState({ program: '', year_level: '1', semester: '1', max_units: '27' });
   const [loadFilter, setLoadFilter] = useState('');
+  const [loadCardPage, setLoadCardPage] = useState(1);
+  const [loadRowPage, setLoadRowPage] = useState(1);
+  const [setLoadOpen, setSetLoadOpen] = useState(false);
   const [setupSection, setSetupSection] = useState('colleges');
 
 useEffect(() => {
@@ -113,6 +116,21 @@ useEffect(() => {
   const filteredLoadKeys = loadFilter
     ? Object.keys(groupedLoads).filter((k) => k === loadFilter)
     : Object.keys(groupedLoads);
+
+  const LOAD_CARDS_PER_PAGE = 6;
+  const LOAD_ROWS_PER_PAGE = 8;
+  const loadCardPageCount = Math.max(1, Math.ceil(filteredLoadKeys.length / LOAD_CARDS_PER_PAGE));
+  const visibleLoadCards = !loadFilter
+    ? filteredLoadKeys.slice((loadCardPage - 1) * LOAD_CARDS_PER_PAGE, loadCardPage * LOAD_CARDS_PER_PAGE)
+    : filteredLoadKeys;
+
+  useEffect(() => {
+    queueMicrotask(() => setLoadCardPage(1));
+  }, [loadFilter]);
+
+  useEffect(() => {
+    queueMicrotask(() => setLoadRowPage(1));
+  }, [loadFilter, semLoads.length]);
 
   return (
     <>
@@ -240,11 +258,33 @@ useEffect(() => {
 
         {setupSection === 'loads' && (
         <div style={s.tabPanel}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 380px) minmax(0, 1fr)', gap: 20, alignItems: 'start' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20, alignItems: 'stretch' }}>
         <div style={{ ...s.panel, minWidth: 0 }}>
-          <PanelTitle>Set Semester Load</PanelTitle>
-          <p style={s.hint}>Define max units per semester per program. Caps student subject selection.</p>
-          <form onSubmit={handleAddSemLoad} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <button
+            type="button"
+            onClick={() => setSetLoadOpen((open) => !open)}
+            aria-expanded={setLoadOpen}
+            style={{
+              width: '100%',
+              border: 'none',
+              background: 'transparent',
+              padding: 0,
+              color: c.accent,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              fontFamily: 'inherit',
+              textAlign: 'left',
+            }}
+          >
+            <PanelTitle>Set Semester Load</PanelTitle>
+            <span style={{ color: c.muted, fontSize: 16 }}>{setLoadOpen ? '⌃' : '⌄'}</span>
+          </button>
+          {setLoadOpen && (
+            <>
+              <p style={s.hint}>Define max units per semester per program. Caps student subject selection.</p>
+              <form onSubmit={handleAddSemLoad} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <Field label="Degree Program">
               <select style={s.input} value={semload.program}
                 onChange={(e) => setSemload({ ...semload, program: e.target.value })} required>
@@ -283,7 +323,9 @@ useEffect(() => {
             <button type="submit" style={s.submitBtn(!semload.program)} disabled={!semload.program}>
               Set Semester Load
             </button>
-          </form>
+              </form>
+            </>
+          )}
         </div>
 
         <div style={{ ...s.panel, minWidth: 0, padding: 0, gap: 0, overflow: 'hidden' }}>
@@ -298,14 +340,62 @@ useEffect(() => {
             </div>
           </div>
 
-          {filteredLoadKeys.length === 0 && (
+          {!loadFilter ? (
+            filteredLoadKeys.length === 0 ? (
+              <div style={{ ...s.comingSoon, minHeight: 360, padding: 24, boxSizing: 'border-box' }}>
+                <div style={{ fontSize: 32, opacity: 0.3 }}>*</div>
+                <div style={{ fontSize: 13, color: 'var(--app-muted)' }}>No semester loads configured yet.</div>
+              </div>
+            ) : (
+              <>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, padding: 16 }}>
+                {visibleLoadCards.map((programName) => (
+                  <button
+                    key={programName}
+                    type="button"
+                    onClick={() => setLoadFilter(programName)}
+                    style={{
+                      ...s.submitBtn(false),
+                      marginTop: 0,
+                      minHeight: 84,
+                      textAlign: 'left',
+                      padding: '14px 16px',
+                      background: c.card,
+                      color: c.text,
+                      borderColor: c.border,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'center',
+                      gap: 6,
+                    }}
+                  >
+                    <span style={{ color: c.accent, fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                      {programName}
+                    </span>
+                    <span style={{ color: c.muted, fontSize: 12 }}>
+                      {groupedLoads[programName].length} semester {groupedLoads[programName].length === 1 ? 'load' : 'loads'}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <div style={{ padding: '0 16px' }}>
+                <UserPagination
+                  page={loadCardPage}
+                  totalPages={loadCardPageCount}
+                  totalItems={filteredLoadKeys.length}
+                  pageSize={LOAD_CARDS_PER_PAGE}
+                  onPageChange={setLoadCardPage}
+                  itemLabel="programs"
+                />
+              </div>
+              </>
+            )
+          ) : filteredLoadKeys.length === 0 ? (
             <div style={{ ...s.comingSoon, minHeight: 360, padding: 24, boxSizing: 'border-box' }}>
               <div style={{ fontSize: 32, opacity: 0.3 }}>*</div>
-              <div style={{ fontSize: 13, color: 'var(--app-muted)' }}>No semester loads configured yet.</div>
+              <div style={{ fontSize: 13, color: 'var(--app-muted)' }}>No semester loads configured for this program.</div>
             </div>
-          )}
-
-          {filteredLoadKeys.map((progName) => (
+          ) : filteredLoadKeys.map((progName) => (
             <div key={progName} style={{ ...s.panel, gap: 0, padding: 0, overflow: 'hidden' }}>
               <div style={{
                 padding: '10px 18px', background: 'var(--app-accent-bg)', borderBottom: '1px solid var(--app-border)',
@@ -328,8 +418,9 @@ useEffect(() => {
                   </tr>
                 </thead>
                 <tbody>
-                  {groupedLoads[progName]
+                  {[...groupedLoads[progName]]
                     .sort((a, b) => a.year_level - b.year_level || a.semester - b.semester)
+                    .slice((loadRowPage - 1) * LOAD_ROWS_PER_PAGE, loadRowPage * LOAD_ROWS_PER_PAGE)
                     .map((sl, i) => (
                       <tr key={sl.id} style={{ background: i % 2 === 0 ? 'transparent' : 'rgba(148, 163, 184, 0.08)', borderBottom: '1px solid var(--app-border)' }}>
                         <td style={{ padding: '10px 16px', color: 'var(--app-text)' }}>Year {sl.year_level}</td>
@@ -359,6 +450,14 @@ useEffect(() => {
                     ))}
                 </tbody>
               </table>
+              <UserPagination
+                page={loadRowPage}
+                totalPages={Math.max(1, Math.ceil(groupedLoads[progName].length / LOAD_ROWS_PER_PAGE))}
+                totalItems={groupedLoads[progName].length}
+                pageSize={LOAD_ROWS_PER_PAGE}
+                onPageChange={setLoadRowPage}
+                itemLabel="semester loads"
+              />
             </div>
           ))}
           </div>
@@ -369,4 +468,3 @@ useEffect(() => {
     </>
   );
 }
-

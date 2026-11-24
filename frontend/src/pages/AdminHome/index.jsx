@@ -23,7 +23,15 @@ const TABS = [
 
 function AdminHome() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('school');
+  const [activeTab, setActiveTab] = useState(() => {
+    const saved = window.sessionStorage.getItem('admin_active_tab');
+    return TABS.some((tab) => tab.key === saved) ? saved : 'school';
+  });
+
+  const changeTab = (tab) => {
+    setActiveTab(tab);
+    window.sessionStorage.setItem('admin_active_tab', tab);
+  };
 
   async function handleLogout() {
     try {
@@ -41,12 +49,12 @@ function AdminHome() {
       navLabel="Management"
       tabs={TABS}
       activeTab={activeTab}
-      onTabChange={setActiveTab}
+      onTabChange={changeTab}
       onLogout={handleLogout}
       topBar={
         <NotificationBell
           fetchItems={() => fetchNotifications()}
-          onViewAll={() => setActiveTab('notifications')}
+          onViewAll={() => changeTab('notifications')}
         />
       }
     >

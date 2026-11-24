@@ -13,7 +13,7 @@ import {
   fetchTeachers as fetchAllTeachers,
   getEnrollmentQueue, approveRejectEnrollments,
   fetchGrades, updateGrade, deleteGrade,
-  fetchGradeReport, exportGradeReportCsv, exportGradeReportExcel,
+  fetchGradeReport, exportGradeReportCsv,
   fetchAuditLogs, adminUpdateUser, adminDeleteUser, adminDeleteStudentRecord,
   fetchNotifications,
 } from '../../controllers/adminController';
@@ -24,9 +24,21 @@ export function ReportsTab() {
   const [filters, setFilters] = useState({ term: '', program: '', year_level: '', student: '', subject: '' });
   const [report, setReport] = useState(null);
   const [programs, setPrograms] = useState([]);
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const exportMenuRef = useRef(null);
 
   useEffect(() => {
     fetchProgram().then(({ data }) => setPrograms(data)).catch(console.error);
+  }, []);
+
+  useEffect(() => {
+    const closeMenu = (event) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target)) {
+        setExportMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', closeMenu);
+    return () => document.removeEventListener('mousedown', closeMenu);
   }, []);
 
   async function loadReport() {
@@ -110,18 +122,6 @@ export function ReportsTab() {
     window.URL.revokeObjectURL(url);
   }
 
-  async function handleExportExcel() {
-    const res = await exportGradeReportExcel(filters);
-    const url = window.URL.createObjectURL(new Blob([res.data]));
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'grade_report.xlsx';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    window.URL.revokeObjectURL(url);
-  }
-
   function handleExportPdf() {
     if (!report) {
       notify('Generate a report first.');
@@ -172,9 +172,74 @@ export function ReportsTab() {
           <PanelTitle>Report Filters</PanelTitle>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <button style={s.submitBtn(false)} onClick={loadReport}>Generate Report</button>
-            <button style={s.paginationButton(!report)} onClick={handleExportPdf} disabled={!report} title="Export PDF">Export PDF</button>
-            <button style={s.paginationButton(false)} onClick={handleExportCsv} title="Export CSV">Export CSV</button>
-            <button style={s.paginationButton(false)} onClick={handleExportExcel} title="Export Excel">Export Excel</button>
+            <div ref={exportMenuRef} style={{ position: 'relative' }}>
+              <button
+                type="button"
+                style={s.paginationButton(false)}
+                onClick={() => setExportMenuOpen((open) => !open)}
+                aria-haspopup="menu"
+                aria-expanded={exportMenuOpen}
+              >
+                Export ▾
+              </button>
+              {exportMenuOpen && (
+                <div
+                  role="menu"
+                  style={{
+                    position: 'absolute',
+                    right: 0,
+                    top: 'calc(100% + 6px)',
+                    zIndex: 20,
+                    minWidth: 150,
+                    padding: 6,
+                    background: c.card,
+                    border: `1px solid ${c.border}`,
+                    borderRadius: 8,
+                    boxShadow: c.shadowLg,
+                  }}
+                >
+                  <button
+                    type="button"
+                    role="menuitem"
+                    disabled={!report}
+                    onClick={() => { setExportMenuOpen(false); handleExportPdf(); }}
+                    style={{
+                      width: '100%',
+                      border: 'none',
+                      borderRadius: 6,
+                      padding: '9px 10px',
+                      background: 'transparent',
+                      color: report ? c.text : c.muted,
+                      cursor: report ? 'pointer' : 'not-allowed',
+                      textAlign: 'left',
+                      fontFamily: 'inherit',
+                      fontSize: 12,
+                    }}
+                  >
+                    Export as PDF
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={async () => { setExportMenuOpen(false); await handleExportCsv(); }}
+                    style={{
+                      width: '100%',
+                      border: 'none',
+                      borderRadius: 6,
+                      padding: '9px 10px',
+                      background: 'transparent',
+                      color: c.text,
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      fontFamily: 'inherit',
+                      fontSize: 12,
+                    }}
+                  >
+                    Export as CSV
+                  </button>
+                </div>
+              )}
+            </div>
             <button style={s.paginationButton(!report)} onClick={handlePrint} disabled={!report} title="Print report">Print</button>
           </div>
         </div>
@@ -301,5 +366,3 @@ export function ReportsTab() {
     </>
   );
 }
-
-
