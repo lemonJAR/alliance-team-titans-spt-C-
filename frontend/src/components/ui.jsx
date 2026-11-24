@@ -7,11 +7,20 @@ export function PanelTitle({ children }) {
   return <div className="ui-panel-title"><span className="ui-dot" />{children}</div>;
 }
 
-export function Field({ label, children }) {
+export function Field({ label, required = false, hint, error, children }) {
   return (
-    <div>
-      <label className="ui-label">{label}</label>
+    <div style={{ minWidth: 0 }}>
+      <label className="ui-label">
+        {label}
+        {required && <span style={{ color: 'var(--app-danger)', marginLeft: 4 }} aria-label="required">*</span>}
+      </label>
       {children}
+      {hint && !error && (
+        <div style={{ marginTop: 5, fontSize: 11, lineHeight: 1.4, color: 'var(--app-muted)' }}>{hint}</div>
+      )}
+      {error && (
+        <div role="alert" style={{ marginTop: 5, fontSize: 11, lineHeight: 1.4, color: 'var(--app-danger)' }}>{error}</div>
+      )}
     </div>
   );
 }

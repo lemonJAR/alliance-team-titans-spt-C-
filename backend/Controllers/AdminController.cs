@@ -314,23 +314,15 @@ public class AdminController(SptDbContext db, AuditService audit, IEmailSender e
             return BadRequest(new { detail = "You cannot delete your own account." });
         if (user.Role == Roles.Admin)
             return BadRequest(new { detail = "Admin accounts cannot be deleted here." });
-
-        var hasGrades = await db.Grades.AnyAsync(g => g.EnteredBy == userId)
-                        || await db.GradeHistories.AnyAsync(h => h.ChangedBy == userId);
-        var hasEnrollments = user.Student != null
-                        && await db.Enrollments.AnyAsync(e => e.StudentId == user.Student.Id);
-        var hasOfferings = user.Teacher != null
-                        && await db.Offerings.AnyAsync(o => o.TeacherId == user.Teacher.Id);
-
-        if (hasGrades || hasEnrollments || hasOfferings)
-            return Conflict(new { detail = "This user has grades, enrollments or classes on record. Deactivate the account instead of deleting it." });
+        if (!(user.IsActive ?? true))
+            return Ok(new { detail = "User is already inactive.", id = user.Id, is_active = false });
 
         var label = $"{user.Email} ({user.Role})";
-        db.Users.Remove(user);   // students.user_id -> SET NULL (pre-loaded ID stays), teachers cascade
+        user.IsActive = false;
         await db.SaveChangesAsync();
 
-        await audit.LogAsync("USER_DELETE", "User", userId, $"Admin deleted {label}");
-        return Ok(new { detail = "User deleted." });
+        await audit.LogAsync("USER_SOFT_DELETE", "User", userId, $"Admin deactivated/soft-deleted {label}");
+        return Ok(new { detail = "User marked inactive.", id = user.Id, is_active = false });
     }
 
     // ───────── Audit log ─────────
@@ -372,7 +364,6 @@ public class AdminController(SptDbContext db, AuditService audit, IEmailSender e
             entity = l.Entity,
             entity_id = l.EntityId,
             details = l.Details,
-            ip_address = l.IpAddress,
             created_at = l.CreatedAt
         }));
     }

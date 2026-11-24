@@ -25,7 +25,6 @@ public class AuditService(SptDbContext db, IHttpContextAccessor http)
                 Entity = entity,
                 EntityId = entityId,
                 Details = details,
-                IpAddress = ctx?.Connection.RemoteIpAddress?.ToString(),
                 CreatedAt = DateTime.UtcNow      // all timestamps in the system are UTC
             });
 
