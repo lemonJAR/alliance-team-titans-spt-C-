@@ -30,7 +30,7 @@ There is **one** sign-in page for all roles. After you sign in, the system sends
 3. Fill in **First name**, **Middle** (optional), **Last name** and **Email**.
 4. Enter your ID:
    - **Student:** your **Student ID**. It must already be pre-registered by the school. If it is not found you will see *"Student ID not found. Please contact the registrar."* If it was already claimed you will see *"This student ID is already registered."*
-   - **Teacher:** your **Employee ID** (must be unique).
+   - **Teacher:** no ID is needed. Your **Employee ID** (e.g. `EMP-0006`) is assigned automatically, and an administrator must approve (activate) your account before you can sign in.
 5. Enter a **Password** and **Confirm password**.
    - At least 8 characters, no more than 72.
    - Must contain **at least one letter and one number**.
@@ -103,7 +103,7 @@ Tabs: **Enrolled Subjects**, **Grade Records**, **History Timeline**.
 - Summary cards: **GWA**, **Units Earned**, **Passed**, **Failed**.
 - **Grade Records:** Prelim, Midterm, Finals and Remarks per subject, with paging.
 - **History Timeline:** every posting/edit of your grades (who changed what and when).
-- **Export Grades** → **Download CSV** or **Download PDF**.
+- **Export Grades** downloads a locked, print-only **PDF** of your grades. The file can be printed but not edited. CSV export is not available.
 
 **Grade scale (Philippine):** 1.00 is best; **3.00 is the lowest passing grade**; 5.00 is failing. Grades move in steps of **0.25** (1.00, 1.25, 1.50 … 5.00). A subject counts as *passed* when the **Finals** grade is **≤ 3.00**.
 
@@ -162,6 +162,7 @@ Search/filter grade entries, then edit or **Delete** any entry (including past t
 ### 4.4 People
 Tabs: **Teachers**, **Students**, **All Users**.
 - **New Faculty Account / New Student Account** – the system creates the account with a **temporary password**, marks the email as verified, and emails the credentials. The person should change the password at first sign-in.
+- **ID numbers are assigned automatically**: students get `{year}-{sequence}` (e.g. `2026-0001`) and teachers get `EMP-{sequence}` (e.g. `EMP-0001`). The new ID appears in the success message. Numbers of removed records are never reused. For bulk teacher import the columns are `first_name, middle_name, last_name, email, department_code` (no employee ID).
 - **Faculty by Department / Students by Program** – directory views.
 - **Activate / Deactivate** – use **Activate** to approve a waiting self-registered teacher. Deactivated users lose access immediately. You cannot deactivate your own account.
 - **Delete** – only allowed for users with **no** grades, enrollments or classes on record; otherwise deactivate instead. Admin accounts cannot be deleted here.
@@ -169,11 +170,11 @@ Tabs: **Teachers**, **Students**, **All Users**.
 ### 4.5 Reports
 1. Set filters: term, program, year level, student, subject.
 2. Generate the **Grade Summary Report** (Total, Graded, Passing, Failing and a results table).
-3. **Export PDF**, **Export CSV**, **Export Excel**, or **Print**.
-   Limits: on-screen table shows up to 5,000 rows (a "truncated" notice appears); CSV/Excel exports up to 20,000 rows.
+3. **Print** the report, or save it as a locked **PDF**. CSV and Excel export are not available, so report data cannot be edited after export.
+   Limit: the on-screen table shows up to 5,000 rows (a "truncated" notice appears).
 
 ### 4.6 Audit Logs
-Filter by **action**, **actor type**, **actor ID** (student ID no. or employee ID) or **email**. Records include logins (success/failure), registrations, enrollment decisions, grade create/update/delete, user changes and term/offering creation. Use **Refresh** to reload.
+Filter by **action**, **actor type**, **actor ID** (student ID no. or employee ID) or **email**. Records include logins (success/failure), registrations, enrollment decisions, grade create/update/delete, user changes and term/offering creation. IP addresses are not recorded. Use **Refresh** to reload.
 
 ### 4.7 Notifications
 Open the bell → **View all** for recent system notifications.

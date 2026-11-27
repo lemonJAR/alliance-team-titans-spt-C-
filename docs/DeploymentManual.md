@@ -21,8 +21,8 @@ Browser ──► React + Vite SPA (frontend/)
 
 | Layer | Technology |
 | --- | --- |
-| Frontend | React 19, Vite 8, React Router 7, axios, jsPDF (PDF export in browser) |
-| Backend | .NET 9 (`net9.0`), JWT Bearer auth, BCrypt password hashing, ClosedXML (Excel export) |
+| Frontend | React 19, Vite 8, React Router 7, axios, jsPDF (locked, print-only PDF export in browser) |
+| Backend | .NET 9 (`net9.0`), JWT Bearer auth, BCrypt password hashing; layered as Controller → Service → Repository → EF Core (see `Architecture.md`) |
 | Database | MySQL 8 (utf8mb4), 17 tables |
 
 ## 2. Prerequisites
@@ -54,6 +54,7 @@ Run in this order as a MySQL administrator (root):
 | 2 | `database/02_seed.sql` | College CCS, program BSIT, 3 subjects, semester loads, **one active term (2025-2026 Sem 1)**, pre-registered students `2025-0001…0003` | Required |
 | 3 | `database/03_offering_schedule_room.sql` | Adds `schedule`/`room` to `offerings` | **Skip on fresh installs** (already in 01; running it fails with "Duplicate column"). Only for databases created from an older schema. |
 | 4 | `database/04_demo_seed.sql` | Demo accounts, offerings, grades, audit data | **Development/demo only. Do not load in production.** |
+| 5 | `database/05_remove_audit_ip.sql` | Drops `ip_address` from `audit_logs` | **Skip on fresh installs** (column no longer in 01). Run once on databases created before this change; running it twice fails. |
 
 Create a dedicated database user (do not use root):
 ```sql
@@ -195,11 +196,11 @@ Before go-live, implement an `IEmailSender` (e.g. `SmtpEmailSender`) and registe
 5. Teacher/student account creation works and the email (or log entry) is produced.
 6. Student: Prospectus request → Admin approves → Student selects schedule.
 7. Teacher posts a grade → student sees it and receives a notification.
-8. Admin: Reports generate and export (PDF/CSV/Excel); Audit Logs show the actions above.
+8. Admin: Reports generate, print and save as PDF; Audit Logs show the actions above.
 
 ## 8. Updating / rollback
 - **Update:** `git pull`, rebuild backend and frontend (§6.1), restart the API, replace `dist/`.
-- **Database changes:** apply new SQL as separate `ALTER` scripts. **Never re-run `01_schema.sql`** on a live database.
+- **Database changes:** apply new SQL as separate `ALTER` scripts (e.g. `05_remove_audit_ip.sql`). **Never re-run `01_schema.sql`** on a live database.
 - **Rollback:** redeploy the previous published build and restore the latest DB backup if a schema change was applied.
 
 ## 9. Troubleshooting
