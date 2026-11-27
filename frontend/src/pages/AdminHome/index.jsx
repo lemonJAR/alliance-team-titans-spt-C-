@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useUrlState } from '../../hooks/useUrlState';
 import DashboardLayout from '../../components/DashboardLayout';
 import { NotificationBell } from '../../components/ui';
 import { signOut } from '../../controllers/authController';
@@ -23,15 +23,8 @@ const TABS = [
 
 function AdminHome() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState(() => {
-    const saved = window.sessionStorage.getItem('admin_active_tab');
-    return TABS.some((tab) => tab.key === saved) ? saved : 'school';
-  });
-
-  const changeTab = (tab) => {
-    setActiveTab(tab);
-    window.sessionStorage.setItem('admin_active_tab', tab);
-  };
+  // The open tab lives in the URL (?tab=...), so a refresh stays on the same page.
+  const [activeTab, changeTab] = useUrlState('tab', 'school', [...TABS.map((t) => t.key), 'notifications']);
 
   async function handleLogout() {
     try {

@@ -1,22 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
-import Icon from '../../components/Icons';
-import { notify, confirmDialog } from '../../components/toastBus';
-import { PageHeader, PanelTitle, Field, SectionHeader, StatCard } from '../../components/ui';
-import { s, c, fmtGrade, parseCsv, UserPagination, escapeHtml, MultiSelect } from './AdminShared';
-import {
-  addCollege, addDegreeProgram, addSubject,
-  fetchCollege, fetchProgram, fetchSubjects,
-  adminCreateTeacher, fetchTeachers,
-  adminCreateStudent, fetchStudents,
-  fetchSemesterLoads, addSemesterLoad,
-  fetchTerms, createTerm, fetchOfferings, createOffering,
-  fetchTeachers as fetchAllTeachers,
-  getEnrollmentQueue, approveRejectEnrollments,
-  fetchGrades, updateGrade, deleteGrade,
-  fetchGradeReport, exportGradeReportCsv, exportGradeReportExcel,
-  fetchAuditLogs, adminUpdateUser, adminDeleteUser, adminDeleteStudentRecord,
-  fetchNotifications,
-} from '../../controllers/adminController';
+import { useUrlState } from '../../hooks/useUrlState';
 import { TeacherTab } from './TeacherTab';
 import { StudentTab } from './StudentTab';
 import { UserManagementTab } from './UserManagementTab';
@@ -28,15 +10,8 @@ const PEOPLE_TABS = [
 ];
 
 export function PeopleTab() {
-  const [sub, setSub] = useState(() => {
-    const saved = window.sessionStorage.getItem('admin_people_subtab');
-    return PEOPLE_TABS.some((tab) => tab.key === saved) ? saved : 'teachers';
-  });
+  const [sub, changeSubTab] = useUrlState('people', 'teachers', PEOPLE_TABS.map((t) => t.key));
 
-  const changeSubTab = (tab) => {
-    setSub(tab);
-    window.sessionStorage.setItem('admin_people_subtab', tab);
-  };
   return (
     <>
       <div className="subtabs" role="tablist">
@@ -60,4 +35,3 @@ export function PeopleTab() {
   );
 }
 
-//  Main component

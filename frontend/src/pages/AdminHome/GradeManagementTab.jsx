@@ -1,411 +1,376 @@
-import React, { useState, useEffect, useRef } from 'react';
-import Icon from '../../components/Icons';
+import { useState, useEffect, useMemo } from 'react';
 import { notify, confirmDialog } from '../../components/toastBus';
-import { PageHeader, PanelTitle, Field, SectionHeader, StatCard } from '../../components/ui';
-import { s, c, fmtGrade, parseCsv, UserPagination, escapeHtml, MultiSelect } from './AdminShared';
-import {
-  addCollege, addDegreeProgram, addSubject,
-  fetchCollege, fetchProgram, fetchSubjects,
-  adminCreateTeacher, fetchTeachers,
-  adminCreateStudent, fetchStudents,
-  fetchSemesterLoads, addSemesterLoad,
-  fetchTerms, createTerm, fetchOfferings, createOffering,
-  fetchTeachers as fetchAllTeachers,
-  getEnrollmentQueue, approveRejectEnrollments,
-  fetchGrades, updateGrade, deleteGrade,
-  fetchGradeReport, exportGradeReportCsv, exportGradeReportExcel,
-  fetchAuditLogs, adminUpdateUser, adminDeleteUser, adminDeleteStudentRecord,
-  fetchNotifications,
-} from '../../controllers/adminController';
+import { PageHeader, PanelTitle, Field, SectionHeader } from '../../components/ui';
+import { s, c, fmtGrade, paginate, apiErrorText } from './adminHelpers';
+import { UserPagination } from './AdminShared';
+import { useUrlPage } from '../../hooks/useUrlState';
+import { fetchSubjects, fetchStudents, fetchTerms, fetchGrades, updateGrade, deleteGrade } from '../../controllers/adminController';
+
+const ROWS_PER_PAGE = 10;
+const PERIODS = [
+  { key: 'prelim', label: 'Prelim' },
+  { key: 'midterm', label: 'Midterm' },
+  { key: 'finals', label: 'Finals' },
+];
+const EMPTY_FILTERS = { student: '', term: '', subject: '', period: '' };
+
+// Grade values the server accepts: 1.00 - 5.00 in steps of 0.25 (blank = not graded yet).
+function gradeError(value) {
+  if (value === '' || value == null) return null;
+  const n = Number(value);
+  if (Number.isNaN(n) || n < 1 || n > 5 || Math.round((n - 1) * 100) % 25 !== 0) return '1.00-5.00, steps of 0.25';
+  return null;
+}
+
+const toEditable = (g) => ({
+  ...g,
+  prelim: fmtGrade(g.prelim ?? ''),
+  midterm: fmtGrade(g.midterm ?? ''),
+  finals: fmtGrade(g.finals ?? ''),
+  remarks: g.remarks ?? '',
+});
+
+const isDirty = (row, original) =>
+  !!original && ['prelim', 'midterm', 'finals', 'remarks'].some((k) => String(row[k] ?? '') !== String(original[k] ?? ''));
+
+const cell = { ...s.td, whiteSpace: 'nowrap' };
+const center = { textAlign: 'center' };
+const gradeInput = (invalid) => ({
+  ...s.input, width: 76, textAlign: 'center', padding: '7px 6px',
+  ...(invalid ? { borderColor: 'var(--app-danger)' } : {}),
+});
 
 export function GradeManagementTab() {
-  const [filters, setFilters] = useState({ student: '', term: '', subject: '', period: '' });
+  const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [subjects, setSubjects] = useState([]);
-  const [termsList, setTermsList] = useState([]);
-  const [grades, setGrades] = useState([]);
+  const [terms, setTerms] = useState([]);
+  const [students, setStudents] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedStudentId, setSelectedStudentId] = useState(null);
+
+  const [rows, setRows] = useState([]);         // editable copies
+  const [originals, setOriginals] = useState({}); // id -> row as loaded, to detect changes
   const [loading, setLoading] = useState(false);
   const [savingId, setSavingId] = useState(null);
-  const [studentsList, setStudentsList] = useState([]);
-  const [showStudentSuggestions, setShowStudentSuggestions] = useState(false);
-  const [selectedProfileId, setSelectedProfileId] = useState(null);
+  const [page, setPage] = useUrlPage('gpage');
 
   useEffect(() => {
     fetchSubjects().then(({ data }) => setSubjects(data || [])).catch(console.error);
-    fetchStudents().then(({ data }) => setStudentsList(data || [])).catch(console.error);
-    fetchTerms().then(({ data }) => setTermsList(data || [])).catch(console.error);
+    fetchStudents().then(({ data }) => setStudents(data || [])).catch(console.error);
+    fetchTerms().then(({ data }) => setTerms(data || [])).catch(console.error);
+    loadGrades(EMPTY_FILTERS, null);
+  // Initial load only; later loads come from the Search button.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function loadGrades() {
+  const suggestions = useMemo(() => {
+    const q = filters.student.trim().toLowerCase();
+    if (!q) return [];
+    return students.filter((st) =>
+      (st.student_id || '').toLowerCase().includes(q) || (st.full_name || '').toLowerCase().includes(q),
+    ).slice(0, 12);
+  }, [filters.student, students]);
+
+  async function loadGrades(f = filters, studentId = selectedStudentId) {
     setLoading(true);
     try {
-      // Prefer selectedProfileId (from picker). Otherwise try to resolve typed student value.
-      let studentParam = selectedProfileId ?? (filters.student || undefined);
-      if (!selectedProfileId && filters.student) {
-        try {
-          const matched = (studentsList || []).find(s => String(s.student_id_no) === String(filters.student) || String(s.student_id) === String(filters.student) || String(s.id) === String(filters.student));
-          if (matched) studentParam = matched.id;
-        } catch (e) {
-          console.error('Failed to resolve student id:', e);
-        }
-      }
-
-      // Normalize term and subject to numeric IDs when possible.
-      let termParam = undefined;
-      if (filters.term) {
-        const n = Number(filters.term);
-        if (!isNaN(n)) termParam = n;
-        else {
-          const matched = (termsList || []).find(t => String(t.id) === String(filters.term) || String(t.label) === String(filters.term) || String(t.name) === String(filters.term));
-          if (matched) termParam = matched.id;
-        }
-      }
-
-      const paramsForRequest = {
-        student: studentParam || undefined,
-        term: termParam || undefined,
-        subject: filters.subject ? parseInt(filters.subject) : undefined,
-        period: filters.period || undefined,
-      };
-      const { data } = await fetchGrades(paramsForRequest);
-      const mapped = (data || []).map((g) => ({
-        ...g,
-        prelim: fmtGrade(g.prelim ?? ''),
-        midterm: fmtGrade(g.midterm ?? ''),
-        finals: fmtGrade(g.finals ?? ''),
-        remarks: g.remarks ?? '',
-      }));
-      setGrades(mapped);
+      // A typed ID number is resolved to the student's database id.
+      const typed = f.student.trim();
+      const match = !studentId && typed ? students.find((st) => st.student_id === typed) : null;
+      const { data } = await fetchGrades({
+        student: studentId ?? match?.id ?? undefined,
+        term: f.term || undefined,
+        subject: f.subject || undefined,
+        period: f.period || undefined,
+      });
+      const editable = (data || []).map(toEditable);
+      setRows(editable);
+      setOriginals(Object.fromEntries(editable.map((r) => [r.id, { ...r }])));
     } catch (err) {
-      console.error('Failed to load grades', err);
-      const status = err.response?.status;
-      const body = err.response?.data;
-      notify('Failed to load grades.' + (status ? ` Status ${status}.` : '') + (body ? ` Response: ${JSON.stringify(body)}` : ''));
+      notify('Failed to load grades. ' + apiErrorText(err));
     } finally {
       setLoading(false);
     }
   }
 
-  async function handleSave(row) {
+  function search() {
+    setPage(1);
+    loadGrades();
+  }
+
+  function clearFilters() {
+    setFilters(EMPTY_FILTERS);
+    setSelectedStudentId(null);
+    setPage(1);
+    loadGrades(EMPTY_FILTERS, null);
+  }
+
+  const editRow = (id, field, value) =>
+    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, [field]: value } : r)));
+
+  const resetRow = (id) =>
+    setRows((prev) => prev.map((r) => (r.id === id ? { ...originals[id] } : r)));
+
+  async function saveRow(row) {
+    const original = originals[row.id];
+    const changes = PERIODS
+      .filter((p) => String(row[p.key]) !== String(original[p.key]))
+      .map((p) => `${p.label}: ${original[p.key] || '--'} -> ${row[p.key] || '--'}`);
+    if (row.remarks !== original.remarks) changes.push('Remarks updated');
+
+    const ok = await confirmDialog(
+      `Override grade for ${row.student_name} (${row.subject_code})?\n${changes.join('\n')}\nThis change is recorded in the grade history and audit log.`,
+    );
+    if (!ok) return;
+
+    setSavingId(row.id);
     try {
-      setSavingId(row.id);
-      await updateGrade(row.id, {
+      const { data } = await updateGrade(row.id, {
         prelim: row.prelim === '' ? null : Number(row.prelim),
         midterm: row.midterm === '' ? null : Number(row.midterm),
         finals: row.finals === '' ? null : Number(row.finals),
         remarks: row.remarks,
       });
-      await loadGrades();
+      const saved = toEditable(data);
+      setRows((prev) => prev.map((r) => (r.id === row.id ? saved : r)));
+      setOriginals((prev) => ({ ...prev, [row.id]: { ...saved } }));
+      notify('Grade updated.');
     } catch (err) {
-      const body = err.response?.data ? JSON.stringify(err.response.data) : err.message;
-      notify('Failed to update grade. ' + body);
+      notify('Failed to update grade. ' + apiErrorText(err));
     } finally {
       setSavingId(null);
     }
   }
 
-  const [previewOpen, setPreviewOpen] = useState(false);
-  const [previewRow, setPreviewRow] = useState(null);
-
-  function handlePreview(row) {
-    const payload = {
-      prelim: row.prelim === '' ? null : row.prelim,
-      midterm: row.midterm === '' ? null : row.midterm,
-      finals: row.finals === '' ? null : row.finals,
-      remarks: row.remarks,
-    };
-    const updated = [];
-    if (payload.prelim !== null) updated.push('Prelim');
-    if (payload.midterm !== null) updated.push('Midterm');
-    if (payload.finals !== null) updated.push('Finals');
-    setPreviewRow({ row, payload, updated });
-    setPreviewOpen(true);
-  }
-
-  async function confirmPreviewSave() {
-    if (!previewRow) return;
-    setPreviewOpen(false);
-    // ensure numeric values when saving previewed payload
-    const r = { ...previewRow.row };
-    r.prelim = r.prelim === '' ? null : Number(r.prelim);
-    r.midterm = r.midterm === '' ? null : Number(r.midterm);
-    r.finals = r.finals === '' ? null : Number(r.finals);
-    await handleSave(r);
-    setPreviewRow(null);
-  }
-  async function handleDelete(row) {
-    if (!await confirmDialog('Delete this grade entry?')) return;
+  async function removeRow(row) {
+    if (!await confirmDialog(`Delete the grade entry for ${row.student_name} (${row.subject_code})? The deletion stays in the grade history.`)) return;
     try {
       await deleteGrade(row.id);
-      await loadGrades();
-    } catch {
-      notify('Failed to delete grade.');
+      setRows((prev) => prev.filter((r) => r.id !== row.id));
+      notify('Grade deleted.');
+    } catch (err) {
+      notify('Failed to delete grade. ' + apiErrorText(err));
     }
   }
 
+  const pageData = paginate(rows, page, ROWS_PER_PAGE);
+  const dirtyCount = rows.filter((r) => isDirty(r, originals[r.id])).length;
+
   return (
     <>
-      <PageHeader title="Grade Overrides" subtitle="Search and adjust grade entries as an administrator." />
+      <PageHeader title="Grade Overrides" subtitle="Search and correct grade entries as an administrator. Every change is recorded." />
 
-      <div style={{ ...s.panel, width: '100%', flex: '0 0 auto', boxSizing: 'border-box' }}>
+      <div style={{ ...s.panel, flex: '0 0 auto' }}>
         <PanelTitle>Search Filters</PanelTitle>
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'minmax(260px, 2fr) repeat(3, minmax(150px, 1fr)) 42px',
+          gridTemplateColumns: 'minmax(240px, 2fr) repeat(3, minmax(160px, 1fr)) auto',
           gap: 12,
           alignItems: 'end',
         }}>
-          <div style={{ position: 'relative', minWidth: 0 }}>
-            <label style={s.label}>Student</label>
-            <input
-              style={s.input}
-              placeholder="Student ID or name"
-              value={filters.student}
-              onChange={(e) => {
-                setFilters({ ...filters, student: e.target.value });
-                setSelectedProfileId(null);
-                setShowStudentSuggestions(true);
-              }}
-              onFocus={() => setShowStudentSuggestions(true)}
-              onBlur={() => setTimeout(() => setShowStudentSuggestions(false), 150)}
-            />
-            {showStudentSuggestions && filters.student && (
-              <div style={{ position: 'absolute', left: 0, right: 0, zIndex: 50, background: 'var(--app-card)', border: '1px solid var(--app-border)', borderRadius: 6, maxHeight: 220, overflow: 'auto' }}>
-                {(studentsList || []).filter(s => {
-                  const q = (filters.student || '').toString().toLowerCase();
-                  return q && (
-                    (s.student_id_no && s.student_id_no.toString().toLowerCase().includes(q)) ||
-                    (s.student_id && s.student_id.toString().toLowerCase().includes(q)) ||
-                    ((s.first_name || s.last_name || s.full_name) && ((s.first_name || s.last_name || s.full_name).toString().toLowerCase().includes(q)))
-                  );
-                }).slice(0, 15).map((s) => (
-                  <div
-                    key={s.id}
-                    onMouseDown={(ev) => { ev.preventDefault(); /* prevent blur */ }}
-                    onClick={() => {
-                      setFilters({ ...filters, student: s.student_id_no || s.student_id || String(s.id) });
-                      setSelectedProfileId(s.id);
-                      setShowStudentSuggestions(false);
-                    }}
-                    style={{ padding: '8px 10px', borderBottom: '1px solid var(--app-border)', cursor: 'pointer', display: 'flex', gap: 8, alignItems: 'center' }}
-                  >
-                    <div style={{ fontFamily: 'monospace', color: '#0f766e', minWidth: 110 }}>{s.student_id_no || s.student_id || s.id}</div>
-                    <div style={{ color: 'var(--app-text)' }}>{s.full_name || `${s.first_name || ''} ${s.last_name || ''}`.trim()}</div>
-                  </div>
-                ))}
-                {(studentsList || []).filter(s => {
-                  const q = (filters.student || '').toString().toLowerCase();
-                  return q && (
-                    (s.student_id_no && s.student_id_no.toString().toLowerCase().includes(q)) ||
-                    (s.student_id && s.student_id.toString().toLowerCase().includes(q)) ||
-                    ((s.first_name || s.last_name || s.full_name) && ((s.first_name || s.last_name || s.full_name).toString().toLowerCase().includes(q)))
-                  );
-                }).length === 0 && (
-                  <div style={{ padding: 10, color: 'var(--app-muted)' }}>No students found</div>
-                )}
-              </div>
-            )}
-          </div>
+          <Field label="Student">
+            <div style={{ position: 'relative' }}>
+              <input
+                style={s.input}
+                placeholder="Student ID or name"
+                value={filters.student}
+                onChange={(e) => {
+                  setFilters({ ...filters, student: e.target.value });
+                  setSelectedStudentId(null);
+                  setShowSuggestions(true);
+                }}
+                onFocus={() => setShowSuggestions(true)}
+                onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                onKeyDown={(e) => { if (e.key === 'Enter') search(); }}
+              />
+              {showSuggestions && filters.student && (
+                <div style={{
+                  position: 'absolute', left: 0, right: 0, top: 'calc(100% + 4px)', zIndex: 50,
+                  background: 'var(--app-card)', border: '1px solid var(--app-border)', borderRadius: 8,
+                  maxHeight: 240, overflow: 'auto', boxShadow: 'var(--app-shadow-lg)',
+                }}>
+                  {suggestions.length === 0 ? (
+                    <div style={{ padding: 10, color: c.muted, fontSize: 12 }}>No students found</div>
+                  ) : suggestions.map((st) => (
+                    <button
+                      key={st.id}
+                      type="button"
+                      onMouseDown={(ev) => ev.preventDefault()}
+                      onClick={() => {
+                        setFilters({ ...filters, student: st.student_id });
+                        setSelectedStudentId(st.id);
+                        setShowSuggestions(false);
+                      }}
+                      style={{
+                        width: '100%', display: 'grid', gridTemplateColumns: '100px 1fr', gap: 10, alignItems: 'center',
+                        padding: '8px 12px', border: 'none', borderBottom: '1px solid var(--app-border)',
+                        background: 'transparent', color: c.text, textAlign: 'left', cursor: 'pointer', font: 'inherit', fontSize: 13,
+                      }}
+                    >
+                      <span style={s.mono}>{st.student_id}</span>
+                      <span>{st.full_name || <em style={{ color: c.muted }}>Not registered</em>}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </Field>
+
           <Field label="Academic Term">
-            <select
-              style={s.input}
-              value={filters.term}
-              onChange={(e) => setFilters({ ...filters, term: e.target.value })}
-            >
-              <option value="">All Terms</option>
-              {(termsList || []).map((t) => {
-                const display = t.label || (t.year_start && t.year_end && t.semester ? `${t.year_start}-${t.year_end} - Sem ${t.semester}` : (t.name || t.id));
-                return <option key={t.id} value={t.id}>{display}</option>;
-              })}
+            <select style={s.input} value={filters.term} onChange={(e) => setFilters({ ...filters, term: e.target.value })}>
+              <option value="">All terms</option>
+              {terms.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.school_year} - Sem {t.semester}{t.is_active ? ' (active)' : ''}
+                </option>
+              ))}
             </select>
           </Field>
 
           <Field label="Grading Period">
-            <select
-              style={s.input}
-              value={filters.period}
-              onChange={(e) => setFilters({ ...filters, period: e.target.value })}
-            >
-              <option value="">All Periods</option>
-              <option value="prelim">Prelim</option>
-              <option value="midterm">Midterm</option>
-              <option value="finals">Finals</option>
+            <select style={s.input} value={filters.period} onChange={(e) => setFilters({ ...filters, period: e.target.value })}>
+              <option value="">All periods</option>
+              {PERIODS.map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}
             </select>
           </Field>
 
           <Field label="Subject">
-            <select
-              style={s.input}
-              value={filters.subject}
-              onChange={(e) => setFilters({ ...filters, subject: e.target.value })}
-            >
-              <option value="">All Subjects</option>
-              {subjects.map((subject) => (
-                <option key={subject.id} value={subject.id}>{subject.code} - {subject.name}</option>
-              ))}
+            <select style={s.input} value={filters.subject} onChange={(e) => setFilters({ ...filters, subject: e.target.value })}>
+              <option value="">All subjects</option>
+              {subjects.map((sub) => <option key={sub.id} value={sub.id}>{sub.code} - {sub.name}</option>)}
             </select>
           </Field>
-          <button
-            type="button"
-            title="Search grades"
-            aria-label="Search grades"
-            style={{
-              ...s.submitBtn(false),
-              width: 42,
-              height: 38,
-              padding: 0,
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginBottom: 0,
-            }}
-            onClick={loadGrades}
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="17"
-              height="17"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <circle cx="11" cy="11" r="7" />
-              <path d="m20 20-4-4" />
-            </svg>
-          </button>
+
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button type="button" style={{ ...s.submitBtn(loading), marginTop: 0, whiteSpace: 'nowrap' }} disabled={loading} onClick={search}>
+              {loading ? 'Searching...' : 'Search'}
+            </button>
+            <button type="button" style={{ ...s.paginationButton(false), padding: '10px 14px' }} onClick={clearFilters}>Clear</button>
+          </div>
         </div>
       </div>
 
-      {/* Removed debug text per user request */}
-
-      {loading ? (
-        <div style={{ ...s.comingSoon, minHeight: 160 }}>Loading grades...</div>
-      ) : grades.length === 0 ? (
-        <div style={{ ...s.comingSoon, minHeight: 160 }}>
-          <div style={{ fontSize: 30, opacity: 0.25 }}>*</div>
-          <div style={{ fontSize: 13, color: c.muted }}>No grade records found.</div>
-        </div>
-      ) : (
-        <div style={{ ...s.panel, padding: 0, overflow: 'hidden' }}>
-          <SectionHeader title="Grade Entries" />
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-            <thead>
-              <tr style={{ background: 'var(--app-panel)' }}>
-                {['Student', 'Subject', 'Term', 'Prelim', 'Midterm', 'Finals', 'Remarks', 'Action'].map((h) => (
-                  <th key={h} style={s.th}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {grades.map((row, idx) => (
-                <tr key={row.id} style={{ background: idx % 2 === 0 ? 'transparent' : c.rowAlt }}>
-                  <td style={s.td}>{row.student_name} ({row.student_id_no})</td>
-                  <td style={s.td}>{row.subject_code} - {row.subject_name}</td>
-                  <td style={s.td}>{row.term_label || row.term || '--'}</td>
-                  <td style={s.td}>
-                    <input
-                      style={{ ...s.input, maxWidth: 96 }}
-                      value={row.prelim ?? ''}
-                      onChange={(e) => {
-                        const copy = [...grades];
-                        copy[idx].prelim = e.target.value;
-                        setGrades(copy);
-                      }}
-                    />
-                  </td>
-                  <td style={s.td}>
-                    <input
-                      style={{ ...s.input, maxWidth: 96 }}
-                      value={row.midterm ?? ''}
-                      onChange={(e) => {
-                        const copy = [...grades];
-                        copy[idx].midterm = e.target.value;
-                        setGrades(copy);
-                      }}
-                    />
-                  </td>
-                  <td style={s.td}>
-                    <input
-                      style={{ ...s.input, maxWidth: 96 }}
-                      value={row.finals ?? ''}
-                      onChange={(e) => {
-                        const copy = [...grades];
-                        copy[idx].finals = e.target.value;
-                        setGrades(copy);
-                      }}
-                    />
-                  </td>
-                  <td style={s.td}>
-                    <input
-                      style={s.input}
-                      value={row.remarks ?? ''}
-                      onChange={(e) => {
-                        const copy = [...grades];
-                        copy[idx].remarks = e.target.value;
-                        setGrades(copy);
-                      }}
-                    />
-                  </td>
-                  <td style={s.td}>
-                    <button
-                      style={s.submitBtn(savingId === row.id)}
-                      disabled={savingId === row.id}
-                      onClick={() => handleSave(row)}
-                    >
-                      {savingId === row.id ? 'Saving...' : 'Save'}
-                    </button>
-                    <button
-                      style={{ ...s.submitBtn(false), marginLeft: 8, background: 'transparent', borderColor: 'var(--app-border)', color: c.muted }}
-                      onClick={() => handlePreview(row)}
-                    >
-                      Preview
-                    </button>
-                    <button
-                      style={{ ...s.submitBtn(false), marginLeft: 8, borderColor: c.danger, color: c.danger }}
-                      onClick={() => handleDelete(row)}
-                    >
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {previewOpen && previewRow && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 60 }}>
-          <div style={{ width: 'min(800px, 96%)', maxHeight: '80vh', overflow: 'auto', background: 'var(--app-card)', border: '1px solid var(--app-border)', borderRadius: 12, padding: 18 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--app-accent)' }}>Preview Grade Payload</div>
-              {filters.period && (
-                <div style={{ marginLeft: 12, fontSize: 12, color: 'var(--app-muted)' }}>
-                  Period: {filters.period.charAt(0).toUpperCase() + filters.period.slice(1)}
-                </div>
-              )}
-              {previewRow.updated && previewRow.updated.length > 0 && (
-                <div style={{ marginLeft: 12, fontSize: 12, color: 'var(--app-muted)' }}>
-                  Updating: {previewRow.updated.join(', ')}
-                </div>
-              )}
-              <div style={{ marginLeft: 'auto' }}>
-                <button onClick={() => setPreviewOpen(false)} style={{ ...s.submitBtn(false), background: 'transparent', borderColor: 'var(--app-border)', color: 'var(--app-muted)' }}>Close</button>
-              </div>
-            </div>
-            <pre style={{ marginTop: 12, background: 'var(--app-panel)', border: '1px solid var(--app-border)', padding: 12, borderRadius: 6, fontSize: 12, overflowX: 'auto' }}>{JSON.stringify(previewRow.payload, null, 2)}</pre>
-            <div style={{ display: 'flex', gap: 8, marginTop: 12, justifyContent: 'flex-end' }}>
-              <button onClick={confirmPreviewSave} style={{ ...s.submitBtn(false) }}>Confirm Save</button>
-              <button onClick={() => setPreviewOpen(false)} style={{ ...s.submitBtn(false), background: 'transparent', borderColor: 'var(--app-border)', color: 'var(--app-muted)' }}>Cancel</button>
-            </div>
+      <div style={{ ...s.panel, padding: 0, gap: 0, overflow: 'hidden' }}>
+        <SectionHeader
+          title="Grade Entries"
+          right={`${rows.length} ${rows.length === 1 ? 'entry' : 'entries'}${dirtyCount ? ` · ${dirtyCount} unsaved` : ''}`}
+        />
+        {loading ? (
+          <div style={{ ...s.comingSoon, minHeight: 160 }}>Loading grades...</div>
+        ) : rows.length === 0 ? (
+          <div style={{ ...s.comingSoon, minHeight: 160 }}>
+            <div style={{ fontSize: 13, color: c.muted }}>No grade records found for these filters.</div>
           </div>
-        </div>
-      )}
+        ) : (
+          <>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ ...s.table, minWidth: 1050 }}>
+                <colgroup>
+                  <col style={{ width: '20%' }} />
+                  <col style={{ width: '20%' }} />
+                  <col style={{ width: 140 }} />
+                  <col style={{ width: 96 }} /><col style={{ width: 96 }} /><col style={{ width: 96 }} />
+                  <col />
+                  <col style={{ width: 210 }} />
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th style={s.th}>Student</th>
+                    <th style={s.th}>Subject</th>
+                    <th style={s.th}>Term</th>
+                    {PERIODS.map((p) => <th key={p.key} style={{ ...s.th, ...center }}>{p.label}</th>)}
+                    <th style={s.th}>Remarks</th>
+                    <th style={{ ...s.th, ...center }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pageData.visible.map((row) => {
+                    const dirty = isDirty(row, originals[row.id]);
+                    const invalid = PERIODS.some((p) => gradeError(row[p.key]));
+                    const saving = savingId === row.id;
+                    return (
+                      <tr key={row.id} style={dirty ? { background: 'var(--app-accent-bg)' } : undefined}>
+                        <td style={s.td}>
+                          <div style={{ fontWeight: 500 }}>{row.student_name}</div>
+                          <div style={{ ...s.mono, fontSize: 11 }}>{row.student_id_no}</div>
+                        </td>
+                        <td style={s.td}>
+                          <div style={s.mono}>{row.subject_code}</div>
+                          <div style={{ fontSize: 12, color: c.muted }}>{row.subject_name}</div>
+                        </td>
+                        <td style={{ ...cell, color: c.muted, fontSize: 12 }}>{row.term_label || '--'}</td>
+                        {PERIODS.map((p) => {
+                          const err = gradeError(row[p.key]);
+                          return (
+                            <td key={p.key} style={{ ...cell, ...center }}>
+                              <input
+                                style={gradeInput(!!err)}
+                                inputMode="decimal"
+                                placeholder="--"
+                                title={err || undefined}
+                                aria-label={`${p.label} grade`}
+                                value={row[p.key]}
+                                onChange={(e) => editRow(row.id, p.key, e.target.value)}
+                              />
+                            </td>
+                          );
+                        })}
+                        <td style={s.td}>
+                          <input
+                            style={{ ...s.input, padding: '7px 10px' }}
+                            placeholder="Optional"
+                            aria-label="Remarks"
+                            value={row.remarks}
+                            onChange={(e) => editRow(row.id, 'remarks', e.target.value)}
+                          />
+                        </td>
+                        <td style={{ ...cell, ...center }}>
+                          <div style={{ display: 'inline-flex', gap: 6 }}>
+                            <button
+                              type="button"
+                              style={{ ...s.submitBtn(!dirty || invalid || saving), marginTop: 0, padding: '7px 12px' }}
+                              disabled={!dirty || invalid || saving}
+                              title={invalid ? 'Fix the highlighted grades first' : undefined}
+                              onClick={() => saveRow(row)}
+                            >
+                              {saving ? 'Saving...' : 'Save'}
+                            </button>
+                            <button
+                              type="button"
+                              style={{ ...s.paginationButton(!dirty), padding: '7px 10px' }}
+                              disabled={!dirty}
+                              onClick={() => resetRow(row.id)}
+                            >
+                              Reset
+                            </button>
+                            <button
+                              type="button"
+                              style={{ ...s.paginationButton(false), padding: '7px 10px', borderColor: 'var(--app-danger)', color: 'var(--app-danger)' }}
+                              onClick={() => removeRow(row)}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div style={{ padding: '0 16px 12px' }}>
+              <UserPagination
+                page={pageData.current}
+                totalPages={pageData.totalPages}
+                totalItems={rows.length}
+                pageSize={ROWS_PER_PAGE}
+                onPageChange={setPage}
+                itemLabel="grade entries"
+              />
+            </div>
+          </>
+        )}
+      </div>
     </>
   );
 }
-
-

@@ -1,5 +1,6 @@
-using Microsoft.EntityFrameworkCore;
+using SptApi.Common;
 using SptApi.Models;
+using SptApi.Repositories;
 using SptApi.Services;
 
 namespace SptApi.Data;
@@ -10,19 +11,20 @@ public static class DbSeeder
     public static async Task SeedAdminAsync(IServiceProvider services)
     {
         using var scope = services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<SptDbContext>();
+        var users = scope.ServiceProvider.GetRequiredService<IUserRepository>();
+        var hasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
         var config = scope.ServiceProvider.GetRequiredService<IConfiguration>();
 
-        if (await db.Users.AnyAsync(u => u.Role == Roles.Admin)) return;
+        if (await users.AdminExistsAsync()) return;
 
         var email = config["Seed:AdminEmail"];
         var password = config["Seed:AdminPassword"];
         if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password)) return;
 
-        db.Users.Add(new User
+        await users.AddAsync(new User
         {
-            Email = email.Trim().ToLowerInvariant(),
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
+            Email = Validation.NormalizeEmail(email),
+            PasswordHash = hasher.Hash(password),
             Role = Roles.Admin,
             FirstName = "System",
             LastName = "Admin",
@@ -30,7 +32,6 @@ public static class DbSeeder
             EmailVerified = true,
             DateJoined = DateTime.UtcNow
         });
-        await db.SaveChangesAsync();
         Console.WriteLine($"[Seed] Admin account created: {email}");
     }
 }

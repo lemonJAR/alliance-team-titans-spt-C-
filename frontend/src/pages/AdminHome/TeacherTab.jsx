@@ -1,27 +1,17 @@
-import React, { useState, useEffect, useRef } from 'react';
-import Icon from '../../components/Icons';
+import { useState, useEffect, useRef } from 'react';
 import { notify, confirmDialog } from '../../components/toastBus';
-import { PageHeader, PanelTitle, Field, SectionHeader, StatCard } from '../../components/ui';
-import { s, c, fmtGrade, parseCsv, UserPagination, escapeHtml, MultiSelect } from './AdminShared';
-import {
-  addCollege, addDegreeProgram, addSubject,
-  fetchCollege, fetchProgram, fetchSubjects,
-  adminCreateTeacher, fetchTeachers,
-  adminCreateStudent, fetchStudents,
-  fetchSemesterLoads, addSemesterLoad,
-  fetchTerms, createTerm, fetchOfferings, createOffering,
-  fetchTeachers as fetchAllTeachers,
-  getEnrollmentQueue, approveRejectEnrollments,
-  fetchGrades, updateGrade, deleteGrade,
-  fetchGradeReport, exportGradeReportCsv, exportGradeReportExcel,
-  fetchAuditLogs, adminUpdateUser, adminDeleteUser, adminDeleteStudentRecord,
-  fetchNotifications,
-} from '../../controllers/adminController';
+import { PanelTitle, Field } from '../../components/ui';
+import { s, c, parseCsv, paginate, apiErrorText } from './adminHelpers';
+import { UserPagination, MultiSelect, GroupPager } from './AdminShared';
+import { useUrlState, useUrlPage } from '../../hooks/useUrlState';
+import { fetchCollege, fetchProgram, fetchSubjects, adminCreateTeacher, fetchTeachers } from '../../controllers/adminController';
+
+const FACULTY_PER_PAGE = 10;
 
 export function TeacherTab() {
   const emptyForm = {
     first_name: '', last_name: '', middle_name: '',
-    email: '', employee_id: '', department: '', subjects: [],
+    email: '', department: '', subjects: [],
   };
 
   const [form, setForm]               = useState(emptyForm);
@@ -29,23 +19,18 @@ export function TeacherTab() {
   const [subjects, setSubjects] = useState([]);
   const [teachers, setTeachers]       = useState([]);
   const [loading, setLoading]         = useState(false);
-  const [filterDept, setFilterDept] = useState(() => window.sessionStorage.getItem('admin_teacher_department') || '');
-  const [activeFacultyTab, setActiveFacultyTab] = useState(() =>
-    window.sessionStorage.getItem('admin_teacher_subtab') === 'directory' ? 'directory' : 'manual'
-  );
+  // Sub-tab, department and page live in the URL so a refresh keeps the same view.
+  const [activeFacultyTab, changeFacultyTab] = useUrlState('faculty', 'manual', ['manual', 'directory']);
+  const [filterDept, setFilterDept] = useUrlState('dept', '');
+  const [facultyPage, setFacultyPage] = useUrlPage('fpage');
   const csvInputRef = useRef(null);
   const [csvRows, setCsvRows] = useState([]);
   const [csvError, setCsvError] = useState('');
   const [csvImporting, setCsvImporting] = useState(false);
 
-  const changeFacultyTab = (tab) => {
-    setActiveFacultyTab(tab);
-    window.sessionStorage.setItem('admin_teacher_subtab', tab);
-  };
-
   const changeDepartmentFilter = (department) => {
     setFilterDept(department);
-    window.sessionStorage.setItem('admin_teacher_department', department);
+    setFacultyPage(1);
   };
 
   const set = (field, value) => setForm((f) => ({ ...f, [field]: value }));
@@ -82,32 +67,29 @@ export function TeacherTab() {
     e.preventDefault();
     setLoading(true);
     try {
-      await adminCreateTeacher({
+      const { data } = await adminCreateTeacher({
         first_name: form.first_name, last_name: form.last_name, middle_name: form.middle_name,
-        email: form.email, employee_id: form.employee_id,
+        email: form.email,
         department: parseInt(form.department), subjects: form.subjects,
       });
-      notify(`OK: Teacher account created. Credentials sent to ${form.email}.`);
+      notify(`OK: Teacher account created with employee ID ${data.employee_id}. Credentials sent to ${form.email}.`);
       setForm(emptyForm); setSubjects([]); loadTeachers();
     } catch (err) {
-      notify('Error: ' + (err.response?.data ? JSON.stringify(err.response.data) : err.message));
+      notify('Error: ' + apiErrorText(err));
     } finally { setLoading(false); }
   }
 
   function validateCsvRows(rows) {
     const emails = new Set();
-    const employeeIds = new Set();
     return rows.map((row) => {
       const errors = [];
       const department = colleges.find((college) => college.code?.toLowerCase() === row.department_code?.toLowerCase());
-      if (!row.first_name || !row.last_name || !row.email || !row.employee_id || !row.department_code) {
+      if (!row.first_name || !row.last_name || !row.email || !row.department_code) {
         errors.push('Required fields are missing');
       }
       if (row.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row.email)) errors.push('Invalid email');
       if (row.email && emails.has(row.email.toLowerCase())) errors.push('Duplicate email in file');
-      if (row.employee_id && employeeIds.has(row.employee_id.toLowerCase())) errors.push('Duplicate employee ID in file');
       if (row.email) emails.add(row.email.toLowerCase());
-      if (row.employee_id) employeeIds.add(row.employee_id.toLowerCase());
       if (!department && row.department_code) errors.push('Department code not found');
       return { ...row, department, errors };
     });
@@ -154,13 +136,12 @@ export function TeacherTab() {
           last_name: row.last_name,
           middle_name: row.middle_name,
           email: row.email,
-          employee_id: row.employee_id,
           department: row.department.id,
           subjects: [],
         });
         created += 1;
       } catch (error) {
-        failures.push(`Row ${row.rowNumber}: ${error.response?.data ? JSON.stringify(error.response.data) : error.message}`);
+        failures.push(`Row ${row.rowNumber}: ${apiErrorText(error)}`);
       }
     }
     setCsvImporting(false);
@@ -176,9 +157,10 @@ export function TeacherTab() {
     return acc;
   }, {});
 
-  const deptKeys = filterDept
-    ? Object.keys(grouped).filter((d) => d === filterDept)
-    : Object.keys(grouped);
+  const deptKeys = Object.keys(grouped).sort();
+  const currentDept = deptKeys.includes(filterDept) ? filterDept : deptKeys[0];
+  const deptRows = currentDept ? grouped[currentDept] : [];
+  const facultyPageData = paginate(deptRows, facultyPage, FACULTY_PER_PAGE);
 
   return (
     <>
@@ -215,7 +197,7 @@ export function TeacherTab() {
           <div style={{ ...s.tabPanel, paddingBottom: 8, borderBottom: '1px solid var(--app-border)' }}>
             <div style={{ ...s.panel, maxWidth: 720, margin: '0 auto' }}>
               <PanelTitle>Import Faculty CSV</PanelTitle>
-              <p style={s.hint}>Upload a prepared CSV with the required faculty fields. Subject assignments can be added afterward.</p>
+              <p style={s.hint}>Columns: first_name, middle_name, last_name, email, department_code. Employee IDs are assigned automatically.</p>
               {csvError && <div style={{ color: c.danger, fontSize: 12, marginTop: 10 }}>{csvError}</div>}
               {csvRows.length > 0 && (
                 <div style={{ marginTop: 12 }}>
@@ -243,7 +225,7 @@ export function TeacherTab() {
       <div style={{ display: 'flex', justifyContent: 'center' }}>
         <div style={{ ...s.panel, width: '100%', maxWidth: 760, minWidth: 0 }}>
           <PanelTitle>New Faculty Account</PanelTitle>
-          <p style={s.hint}>A temporary password will be auto-generated and emailed to the teacher.</p>
+          <p style={s.hint}>The employee ID (EMP-0001, EMP-0002 ...) is assigned automatically. A temporary password is emailed to the teacher.</p>
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
               <Field label="First Name">
@@ -262,10 +244,6 @@ export function TeacherTab() {
             <Field label="Email">
               <input style={s.input} type="email" value={form.email}
                 onChange={(e) => set('email', e.target.value)} required />
-            </Field>
-            <Field label="Employee ID">
-              <input style={s.input} type="text" value={form.employee_id}
-                onChange={(e) => set('employee_id', e.target.value)} required />
             </Field>
             <Field label="Department (College)">
               <select style={s.input} value={form.department}
@@ -294,85 +272,32 @@ export function TeacherTab() {
         {activeFacultyTab === 'directory' && (
           <div style={{ ...s.tabPanel, paddingBottom: 8 }}>
             <div style={{ ...s.panel, minWidth: 0, padding: 0, gap: 0, overflow: 'hidden' }}>
-              <div style={{ padding: '10px 18px', background: c.accentBg, borderBottom: '1px solid var(--app-border)', display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ padding: '10px 18px', background: c.accentBg, borderBottom: '1px solid var(--app-border)', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                 <PanelTitle>Faculty by Department</PanelTitle>
                 <div style={{ marginLeft: 'auto' }}>
-                  <select style={{ ...s.input, width: 'auto', fontSize: 12, padding: '6px 10px' }}
-                    value={filterDept} onChange={(e) => changeDepartmentFilter(e.target.value)}>
-                    <option value="">All Departments</option>
-                    {Object.keys(grouped).map((department) => (
-                      <option key={department} value={department}>{department}</option>
-                    ))}
-                  </select>
+                  <GroupPager groups={deptKeys} value={currentDept} onChange={changeDepartmentFilter} label="Department" />
                 </div>
               </div>
-              {!filterDept ? (
-                deptKeys.length === 0 ? (
-                  <div style={{ ...s.comingSoon, minHeight: 420, padding: 24, boxSizing: 'border-box' }}>
-                    <div style={{ fontSize: 36, opacity: 0.3 }}>*</div>
-                    <div style={{ fontSize: 14, color: c.muted }}>No faculty added yet.</div>
-                  </div>
-                ) : (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, padding: 16 }}>
-                    {deptKeys.map((department) => (
-                      <button
-                        key={department}
-                        type="button"
-                        onClick={() => changeDepartmentFilter(department)}
-                        style={{
-                          ...s.submitBtn(false),
-                          marginTop: 0,
-                          minHeight: 84,
-                          textAlign: 'left',
-                          padding: '14px 16px',
-                          background: c.card,
-                          color: c.text,
-                          borderColor: c.border,
-                          display: 'flex',
-                          flexDirection: 'column',
-                          justifyContent: 'center',
-                          gap: 6,
-                        }}
-                      >
-                        <span style={{ color: c.accent, fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                          {department}
-                        </span>
-                        <span style={{ color: c.muted, fontSize: 12 }}>
-                          {grouped[department].length} {grouped[department].length === 1 ? 'faculty member' : 'faculty members'}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                )
-              ) : deptKeys.length === 0 ? (
-                <div style={{ ...s.comingSoon, minHeight: 420, padding: 24, boxSizing: 'border-box' }}>
-                  <div style={{ fontSize: 36, opacity: 0.3 }}>*</div>
+              {deptKeys.length === 0 ? (
+                <div style={{ ...s.comingSoon, minHeight: 240, padding: 24, boxSizing: 'border-box' }}>
                   <div style={{ fontSize: 14, color: c.muted }}>No faculty added yet.</div>
                 </div>
-              ) : deptKeys.map((dept) => (
-                <div key={dept} style={{ borderBottom: '1px solid var(--app-border)' }}>
-                  <div style={{ padding: '10px 18px', background: c.accentBg, borderBottom: '1px solid var(--app-border)', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: c.accent, display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ width: 6, height: 6, background: c.accent, borderRadius: '50%', display: 'inline-block' }} />
-                    {dept}
-                    <span style={{ marginLeft: 'auto', fontWeight: 400, color: c.muted, fontSize: 11 }}>
-                      {grouped[dept].length} {grouped[dept].length === 1 ? 'faculty' : 'faculty members'}
-                    </span>
-                  </div>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              ) : (
+                <div style={{ paddingBottom: 12 }}>
+                  <table style={s.table}>
+                    <colgroup>
+                      <col style={{ width: '26%' }} /><col style={{ width: 130 }} /><col style={{ width: '28%' }} /><col />
+                    </colgroup>
                     <thead>
-                      <tr style={{ background: 'var(--app-panel)' }}>
-                        {['Name', 'Employee ID', 'Email', 'Subjects'].map((h, index) => (
-                          <th key={h} style={{ padding: '8px 16px', textAlign: index === 0 ? 'left' : 'center', fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: c.muted, borderBottom: '1px solid var(--app-border)' }}>{h}</th>
-                        ))}
-                      </tr>
+                      <tr>{['Name', 'Employee ID', 'Email', 'Subjects'].map((h) => <th key={h} style={s.th}>{h}</th>)}</tr>
                     </thead>
                     <tbody>
-                      {grouped[dept].map((t, i) => (
-                        <tr key={t.employee_id} style={{ background: i % 2 === 0 ? 'transparent' : 'rgba(148, 163, 184, 0.08)', borderBottom: '1px solid var(--app-border)' }}>
-                          <td style={{ padding: '10px 16px', fontWeight: 500, color: c.text, textAlign: 'left' }}>{t.full_name}</td>
-                          <td style={{ padding: '10px 16px', fontFamily: 'monospace', color: c.muted, fontSize: 12, textAlign: 'center' }}>{t.employee_id}</td>
-                          <td style={{ padding: '10px 16px', color: c.muted, fontSize: 12, textAlign: 'center' }}>{t.email}</td>
-                          <td style={{ padding: '10px 16px', textAlign: 'center' }}>
+                      {facultyPageData.visible.map((t) => (
+                        <tr key={t.id}>
+                          <td style={{ ...s.td, fontWeight: 500 }}>{t.full_name}</td>
+                          <td style={{ ...s.td, ...s.mono }}>{t.employee_id}</td>
+                          <td style={{ ...s.td, color: c.muted, fontSize: 12 }}>{t.email}</td>
+                          <td style={s.td}>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                               {t.subjects?.length > 0
                                 ? t.subjects.map((subject) => <span key={subject} style={{ background: c.accentBg, border: '1px solid var(--app-accent)', color: c.accent, borderRadius: 4, padding: '2px 7px', fontSize: 11 }}>{subject}</span>)
@@ -383,8 +308,18 @@ export function TeacherTab() {
                       ))}
                     </tbody>
                   </table>
+                  <div style={{ padding: '0 16px' }}>
+                    <UserPagination
+                      page={facultyPageData.current}
+                      totalPages={facultyPageData.totalPages}
+                      totalItems={deptRows.length}
+                      pageSize={FACULTY_PER_PAGE}
+                      onPageChange={setFacultyPage}
+                      itemLabel="faculty members"
+                    />
+                  </div>
                 </div>
-              ))}
+              )}
             </div>
           </div>
         )}

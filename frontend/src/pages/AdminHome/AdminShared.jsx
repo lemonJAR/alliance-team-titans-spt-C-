@@ -1,89 +1,7 @@
-import React from 'react';
+// Small UI pieces shared by the admin pages. Styles and helpers are in adminHelpers.js.
+import { s, c } from './adminHelpers';
 
-const s = {
-  pageTitle: { fontSize: 26, fontWeight: 600, letterSpacing: '-0.01em' },
-  pageSub:   { fontSize: 13, color: 'var(--app-muted)', marginTop: 4 },
-  panels:    { display: 'flex', gap: 20, flexWrap: 'wrap' },
-  panel: {
-    background: 'var(--app-card)', border: '1px solid var(--app-border)', borderRadius: 10,
-    padding: 24, flex: 1, minWidth: 260, display: 'flex', flexDirection: 'column', gap: 14,
-  },
-  panelTitle: {
-    fontSize: 14, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase',
-    color: 'var(--app-accent)', display: 'flex', alignItems: 'center', gap: 6,
-  },
-  tabNav: {
-    display: 'flex', gap: 8, padding: '12px 16px', background: 'var(--app-panel)', borderBottom: '1px solid var(--app-border)',
-    alignItems: 'center',
-  },
-  tabButton: (active) => ({
-    padding: '10px 14px', borderRadius: 999, border: active ? '1px solid var(--app-accent)' : '1px solid transparent',
-    background: active ? 'var(--app-accent-bg)' : 'transparent', color: active ? 'var(--app-accent)' : 'var(--app-muted)',
-    fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.18s', whiteSpace: 'nowrap', flexShrink: 0,
-  }),
-  tabPanel: {
-    padding: 20,
-    overflowX: 'auto',
-  },
-  hint:  { fontSize: 12, color: 'var(--app-muted)', marginTop: -8, lineHeight: 1.5 },
-  label: {
-    display: 'block', fontSize: 11, fontWeight: 500, color: 'var(--app-muted)',
-    letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: 5,
-  },
-  input: {
-    width: '100%', background: 'var(--app-panel)', border: '1px solid var(--app-border)', borderRadius: 7,
-    padding: '9px 12px', color: 'var(--app-text)', fontSize: 13.5, fontFamily: 'inherit',
-    outline: 'none', boxSizing: 'border-box',
-  },
-  submitBtn: (disabled) => ({
-    background: disabled ? 'var(--app-panel)' : 'var(--app-accent-bg)',
-    border:     disabled ? '1px solid var(--app-border)' : '1px solid var(--app-accent)',
-    color:      disabled ? 'var(--app-muted)' : 'var(--app-accent)',
-    fontSize: 13, fontWeight: 600, padding: '10px 16px', borderRadius: 7,
-    cursor: disabled ? 'not-allowed' : 'pointer', fontFamily: 'inherit', marginTop: 2,
-  }),
-  paginationButton: (disabled) => ({
-    padding: '7px 10px', borderRadius: 7, border: '1px solid var(--app-border)',
-    background: disabled ? 'var(--app-panel)' : 'var(--app-card)',
-    color: disabled ? 'var(--app-muted)' : 'var(--app-text)',
-    fontSize: 12, cursor: disabled ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
-  }),
-  comingSoon: {
-    display: 'flex', flexDirection: 'column', alignItems: 'center',
-    justifyContent: 'center', minHeight: 320, gap: 12, color: 'var(--app-muted)', textAlign: 'center',
-  },
-};
-
-
-const c = {
-  text: 'var(--app-text)',
-  muted: 'var(--app-muted)',
-  border: 'var(--app-border)',
-  card: 'var(--app-card)',
-  panel: 'var(--app-panel)',
-  accent: 'var(--app-accent)',
-  accentBg: 'var(--app-accent-bg)',
-  accentSoft: 'var(--app-accent-soft)',
-  shadowLg: 'var(--app-shadow-lg)',
-  rowAlt: 'rgba(148, 163, 184, 0.08)',
-  overlay: 'rgba(15, 23, 42, 0.16)',
-  danger: 'var(--app-danger)',
-  dangerBg: 'var(--app-danger-bg)',
-  dangerBorder: 'var(--app-danger-border)',
-  info: 'var(--app-info)',
-  infoBg: 'var(--app-info-bg)',
-  infoBorder: 'var(--app-info-border)',
-  warning: 'var(--app-warning)',
-  warningBg: 'var(--app-warning-bg)',
-  warningBorder: 'var(--app-warning-border)',
-  purple: '#a855f7',
-  purpleBg: 'rgba(168, 85, 247, 0.10)',
-  purpleBorder: 'rgba(168, 85, 247, 0.26)',
-};
-
-
-
-function MultiSelect({ options, selected, onChange, placeholder, groupKey = 'program_name' }) {
+export function MultiSelect({ options, selected, onChange, placeholder, groupKey = 'program_name' }) {
   const toggle = (id) =>
     onChange(selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id]);
 
@@ -142,56 +60,7 @@ function MultiSelect({ options, selected, onChange, placeholder, groupKey = 'pro
 }
 
 
-
-function fmtGrade(value) {
-  if (value === '' || value == null) return '';
-  const n = Number(value);
-  return Number.isNaN(n) ? value : n.toFixed(2);
-}
-
-
-function parseCsv(text) {
-  const rows = [];
-  let row = [];
-  let value = '';
-  let quoted = false;
-
-  for (let i = 0; i < text.length; i += 1) {
-    const char = text[i];
-    const next = text[i + 1];
-    if (char === '"' && quoted && next === '"') {
-      value += '"';
-      i += 1;
-    } else if (char === '"') {
-      quoted = !quoted;
-    } else if (char === ',' && !quoted) {
-      row.push(value.trim());
-      value = '';
-    } else if ((char === '\n' || char === '\r') && !quoted) {
-      if (char === '\r' && next === '\n') i += 1;
-      row.push(value.trim());
-      if (row.some(Boolean)) rows.push(row);
-      row = [];
-      value = '';
-    } else {
-      value += char;
-    }
-  }
-
-  row.push(value.trim());
-  if (row.some(Boolean)) rows.push(row);
-  if (rows.length < 2) return [];
-
-  const headers = rows[0].map((header) => header.toLowerCase().replace(/\s+/g, '_'));
-  return rows.slice(1).map((cells, index) => ({
-    rowNumber: index + 2,
-    ...headers.reduce((record, header, column) => ({ ...record, [header]: cells[column] || '' }), {}),
-  }));
-}
-
-
-
-function UserPagination({ page, totalPages, totalItems, pageSize, onPageChange, itemLabel = 'users' }) {
+export function UserPagination({ page, totalPages, totalItems, pageSize, onPageChange, itemLabel = 'users' }) {
   const firstItem = (page - 1) * pageSize + 1;
   const lastItem = Math.min(page * pageSize, totalItems);
 
@@ -232,15 +101,21 @@ function UserPagination({ page, totalPages, totalItems, pageSize, onPageChange, 
 }
 
 
-function escapeHtml(value) {
-  return String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+// Shows ONE group (a college, program or department) at a time: Previous / dropdown / Next.
+export function GroupPager({ groups, value, onChange, label = 'Group' }) {
+  if (groups.length === 0) return null;
+  const index = Math.max(0, groups.indexOf(value));
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+      <button type="button" style={s.paginationButton(index === 0)} disabled={index === 0}
+        onClick={() => onChange(groups[index - 1])}>Previous</button>
+      <select aria-label={label} style={{ ...s.input, width: 'auto', minWidth: 220, padding: '7px 12px', fontSize: 12.5 }}
+        value={groups[index]} onChange={(e) => onChange(e.target.value)}>
+        {groups.map((g) => <option key={g} value={g}>{g}</option>)}
+      </select>
+      <button type="button" style={s.paginationButton(index === groups.length - 1)} disabled={index === groups.length - 1}
+        onClick={() => onChange(groups[index + 1])}>Next</button>
+      <span style={{ fontSize: 12, color: 'var(--app-muted)' }}>{label} {index + 1} of {groups.length}</span>
+    </div>
+  );
 }
-
-
-
-export { s, c, MultiSelect, fmtGrade, parseCsv, UserPagination, escapeHtml };

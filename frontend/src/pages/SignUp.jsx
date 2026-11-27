@@ -12,7 +12,6 @@ const initialForm = {
   password: "",
   confirm_password: "",
   student_id: "",
-  employee_id: "",
 };
 
 export default function SignUp() {
@@ -59,10 +58,10 @@ const handleSubmit = async () => {
       }
     }
 
-    const { student_id, employee_id, ...base } = form;
+    // Professors get an employee ID assigned automatically, so only students send an ID.
+    const { student_id, ...base } = form;
     const payload = { ...base };
-    if (form.role === "STUDENT")   payload.student_id  = student_id;
-    if (form.role === "PROFESSOR") payload.employee_id = employee_id;
+    if (form.role === "STUDENT") payload.student_id = student_id;
 
     await register(payload);
     setDone(true);
@@ -178,14 +177,9 @@ const handleSubmit = async () => {
                 )}
 
                 {form.role === "PROFESSOR" && (
-                <Field label="Employee ID" error={errors.employee_id}>
-                    <input
-                    className={`finput ${errors.employee_id ? "finput-error" : ""}`}
-                    type="text"
-                    value={form.employee_id || ""}
-                    onChange={(e) => set("employee_id", e.target.value)}
-                    />
-                </Field>
+                <p className="helper-text">
+                  Your employee ID is assigned automatically. An administrator must approve the account before you can sign in.
+                </p>
                 )}
 
               <Field label="Password" error={errors.password}>

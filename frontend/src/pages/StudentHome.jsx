@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import { downloadLockedGradePdf } from '../utils/securePdf';
+import { useUrlState } from '../hooks/useUrlState';
 import {
   getStudentProfile,
   updateStudentProfile,
@@ -11,7 +11,6 @@ import {
   selectSchedule,
   fetchTerms,
   getMyGrades,
-  exportMyGrades,
   changePassword,
   fetchGradeTimeline,
   fetchNotifications,
@@ -535,15 +534,12 @@ function GradesTab() {
   const [loading, setLoading] = useState(true);
   const [filterTerm, setFilterTerm] = useState('');
   const [prospectus, setProspectus] = useState([]);
-  const [exportOpen, setExportOpen] = useState(false);
-  const [exporting, setExporting] = useState(false);
   const [timeline, setTimeline] = useState([]);
   const [timelineLoading, setTimelineLoading] = useState(true);
-  const [activeGradeTab, setActiveGradeTab] = useState('enrolled');
+  const [activeGradeTab, setActiveGradeTab] = useUrlState('view', 'enrolled', ['enrolled', 'records', 'timeline']);
   const [enrolledPage, setEnrolledPage] = useState(1);
   const [recordsPage, setRecordsPage] = useState(1);
   const [timelinePage, setTimelinePage] = useState(1);
-  const exportRef = useRef(null);
   const pageSize = 8;
 
   useEffect(() => {
@@ -616,16 +612,6 @@ function GradesTab() {
   const timelinePages = Math.max(1, Math.ceil(timeline.length / pageSize));
   const visibleTimeline = timeline.slice((timelinePage - 1) * pageSize, timelinePage * pageSize);
 
-  useEffect(() => {
-    function handleOutsideClick(event) {
-      if (exportRef.current && !exportRef.current.contains(event.target)) {
-        setExportOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handleOutsideClick);
-    return () => document.removeEventListener('mousedown', handleOutsideClick);
-  }, []);
-
   const gradedAll = grades.filter((g) => g.finals != null);
   const allPassed = gradedAll.filter((g) => parseFloat(g.finals) <= 3.0);
   const allFailed = gradedAll.filter((g) => parseFloat(g.finals) > 3.0);
@@ -654,67 +640,34 @@ function GradesTab() {
     return 'var(--app-danger)';
   }
 
-  async function handleExportCsv() {
-    try {
-      setExporting(true);
-      const res = await exportMyGrades();
-      const url = window.URL.createObjectURL(new Blob([res.data]));
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'grades.csv';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error(err);
-      notify('Failed to download grades CSV.');
-    } finally {
-      setExporting(false);
-      setExportOpen(false);
-    }
-  }
-
+  // Grades can only be exported as a locked, print-only PDF. A CSV could be opened in a spreadsheet
+  // and edited, so a student could hand in a copy with changed grades.
   function handleExportPdf() {
+    const status = (finals) => {
+      if (finals == null) return 'IN PROGRESS';
+      return Number(finals) <= 3.0 ? 'PASSED' : 'FAILED';
+    };
+    const fmt = (v) => (v == null || v === '' ? '--' : Number(v).toFixed(2));
     try {
-      const doc = new jsPDF({ orientation: 'landscape' });
-      const now = new Date();
-
-      doc.setFontSize(15);
-      doc.text('Student Grade Report', 14, 16);
-      doc.setFontSize(10);
-      doc.text(`Generated: ${now.toLocaleString()}`, 14, 23);
-
-      const tableRows = syncedEnrolled.map((d) => {
-        const finals = d.finals ?? null;
-        const finalsNum = finals == null ? null : Number(finals);
-        const status = finalsNum == null ? 'IN PROGRESS' : finalsNum <= 3.0 ? 'PASSED' : 'FAILED';
-        return [
+      downloadLockedGradePdf({
+        fileName: 'grades.pdf',
+        title: 'Student Grade Report',
+        subtitleLines: [`GWA: ${gwa ?? '--'}   |   Units earned: ${totalUnitsEarned}   |   Passed: ${allPassed.length}   |   Failed: ${allFailed.length}`],
+        head: ['Code', 'Subject', 'Term', 'Units', 'Prelim', 'Midterm', 'Finals', 'Status'],
+        body: syncedEnrolled.map((d) => [
           d.subject_code || d.code || '-',
           d.subject_name || d.name || '-',
+          d.term_label || '-',
           d.units ?? '-',
-          d.prelim ?? '--',
-          d.midterm ?? '--',
-          d.finals ?? '--',
-          status,
-        ];
+          fmt(d.prelim),
+          fmt(d.midterm),
+          fmt(d.finals),
+          status(d.finals),
+        ]),
       });
-
-      autoTable(doc, {
-        startY: 30,
-        head: [['Code', 'Subject', 'Units', 'Prelim', 'Midterm', 'Finals', 'Status']],
-        body: tableRows,
-        styles: { fontSize: 9, cellPadding: 2.4 },
-        headStyles: { fillColor: [30, 35, 53] },
-        alternateRowStyles: { fillColor: [245, 247, 250] },
-      });
-
-      doc.save('grades.pdf');
     } catch (err) {
       console.error(err);
       notify('Failed to download grades PDF.');
-    } finally {
-      setExportOpen(false);
     }
   }
 
@@ -725,72 +678,24 @@ function GradesTab() {
         <div style={s.pageSub}>
           Academic records + currently enrolled subjects (synced view).
         </div>
-        <div style={{ marginTop: 8, position: 'relative', display: 'inline-block' }} ref={exportRef}>
-          <button
-            onClick={() => setExportOpen((v) => !v)}
-            disabled={exporting}
-            style={{
-              marginTop: 8,
-              padding: '7px 12px',
-              fontSize: 13,
-              borderRadius: 8,
-              border: '1px solid var(--app-border)',
-              background: 'var(--app-panel)',
-              color: 'var(--app-text)',
-              cursor: exporting ? 'not-allowed' : 'pointer',
-            }}
-          >
-            {exporting ? 'Exporting...' : 'Export Grades'}
-          </button>
-          {exportOpen && (
-            <div
-              style={{
-                position: 'absolute',
-                top: 44,
-                left: 0,
-                minWidth: 170,
-                border: '1px solid var(--app-border)',
-                background: 'var(--app-card)',
-                borderRadius: 8,
-                overflow: 'hidden',
-                zIndex: 5,
-                boxShadow: '0 10px 24px rgba(0,0,0,0.35)',
-              }}
-            >
-              <button
-                onClick={handleExportCsv}
-                style={{
-                  width: '100%',
-                  textAlign: 'left',
-                  padding: '10px 12px',
-                  background: 'transparent',
-                  color: 'var(--app-text)',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontSize: 13,
-                }}
-              >
-                Download CSV
-              </button>
-              <button
-                onClick={handleExportPdf}
-                style={{
-                  width: '100%',
-                  textAlign: 'left',
-                  padding: '10px 12px',
-                  background: 'transparent',
-                  color: 'var(--app-text)',
-                  border: 'none',
-                  borderTop: '1px solid var(--app-border)',
-                  cursor: 'pointer',
-                  fontSize: 13,
-                }}
-              >
-                Download PDF
-              </button>
-            </div>
-          )}
-        </div>
+        <button
+          type="button"
+          onClick={handleExportPdf}
+          disabled={loading || syncedEnrolled.length === 0}
+          title="Downloads a print-only PDF. The file can't be edited."
+          style={{
+            marginTop: 12,
+            padding: '8px 14px',
+            fontSize: 13,
+            borderRadius: 8,
+            border: '1px solid var(--app-border)',
+            background: 'var(--app-panel)',
+            color: 'var(--app-text)',
+            cursor: loading || syncedEnrolled.length === 0 ? 'not-allowed' : 'pointer',
+          }}
+        >
+          Download PDF
+        </button>
       </div>
 
       {/* STATS */}
@@ -1235,7 +1140,8 @@ const TABS = [
 
 export default function StudentHome() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('profile');
+  // The open tab lives in the URL (?tab=...), so a refresh stays on the same page.
+  const [activeTab, setActiveTab] = useUrlState('tab', 'profile', TABS.map((t) => t.key));
   const [profile, setProfile] = useState(null);
 
   useEffect(() => {

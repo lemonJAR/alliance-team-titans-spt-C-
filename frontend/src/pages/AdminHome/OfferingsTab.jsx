@@ -1,21 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
-import Icon from '../../components/Icons';
-import { notify, confirmDialog } from '../../components/toastBus';
-import { PageHeader, PanelTitle, Field, SectionHeader, StatCard } from '../../components/ui';
-import { s, c, fmtGrade, parseCsv, UserPagination, escapeHtml, MultiSelect } from './AdminShared';
+import { useState, useEffect } from 'react';
+import { notify } from '../../components/toastBus';
+import { PageHeader } from '../../components/ui';
+import { s, c, apiErrorText } from './adminHelpers';
+import { useUrlState } from '../../hooks/useUrlState';
 import {
-  addCollege, addDegreeProgram, addSubject,
-  fetchCollege, fetchProgram, fetchSubjects,
-  adminCreateTeacher, fetchTeachers,
-  adminCreateStudent, fetchStudents,
-  fetchSemesterLoads, addSemesterLoad,
-  fetchTerms, createTerm, fetchOfferings, createOffering,
+  fetchProgram, fetchSubjects, fetchTerms, fetchOfferings, createOffering,
   fetchTeachers as fetchAllTeachers,
-  getEnrollmentQueue, approveRejectEnrollments,
-  fetchGrades, updateGrade, deleteGrade,
-  fetchGradeReport, exportGradeReportCsv, exportGradeReportExcel,
-  fetchAuditLogs, adminUpdateUser, adminDeleteUser, adminDeleteStudentRecord,
-  fetchNotifications,
 } from '../../controllers/adminController';
 import { CreateTermModal } from './CreateTermModal';
 import { ApprovalQueue } from './ApprovalQueue';
@@ -27,31 +17,21 @@ const emptyOfferingForm = () => ({
 
 
 
-const STATUS_COLORS = {
-  PENDING:   { bg: 'var(--app-panel)', border: 'var(--app-border)',  color: 'var(--app-muted)' },
-  APPROVED:  { bg: c.accentBg, border: 'var(--app-accent)',  color: c.accent },
-  REJECTED:  { bg: c.dangerBg, border: c.dangerBorder,  color: c.danger },
-  ENROLLED:  { bg: c.infoBg, border: c.infoBorder,  color: c.info },
-  DROPPED:   { bg: c.warningBg, border: c.warningBorder,  color: c.warning },
-  WITHDRAWN: { bg: c.purpleBg, border: c.purpleBorder,  color: c.purple },
-};
-
-
-
 export function OfferingsTab() {
   const [terms,     setTerms]     = useState([]);
   const [programs,  setPrograms]  = useState([]);
   const [teachers,  setTeachers]  = useState([]);
 
-  const [selTerm,      setSelTerm]      = useState('');
-  const [selProgram,   setSelProgram]   = useState('');
-  const [selYearLevel, setSelYearLevel] = useState('');
-  const [selSemester,  setSelSemester]  = useState('');
+  // Filters and the open sub-tab live in the URL so a refresh keeps the same view.
+  const [selTerm,      setSelTerm]      = useUrlState('term', '');
+  const [selProgram,   setSelProgram]   = useUrlState('oprogram', '');
+  const [selYearLevel, setSelYearLevel] = useUrlState('year', '');
+  const [selSemester,  setSelSemester]  = useUrlState('sem', '');
 
   const [subjects, setSubjects] = useState([]);
   const [offerings,   setOfferings]   = useState([]);
   const [expandedSubject, setExpandedSubject] = useState(null);
-  const [activeOfferingTab, setActiveOfferingTab] = useState('offerings');
+  const [activeOfferingTab, setActiveOfferingTab] = useUrlState('offer', 'offerings', ['offerings', 'requests']);
   const [forms,       setForms]       = useState({});
   const [submitting,  setSubmitting]  = useState({});
   const [showTermModal, setShowTermModal] = useState(false);
@@ -62,13 +42,16 @@ export function OfferingsTab() {
     fetchProgram().then(({ data }) => setPrograms(data)).catch(console.error),
     fetchAllTeachers().then(({ data }) => setTeachers(data)).catch(console.error),
   ]);
+  // Runs once when the tab opens; loadTerms is also called after a new term is created.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
 }, []);
 
   function loadTerms() {
     return fetchTerms().then(({ data }) => {
       setTerms(data);
+      // Default to the active term unless the URL already picked one.
       const active = data.find((t) => t.is_active);
-      if (active) setSelTerm(String(active.id));
+      if (active && !new URLSearchParams(window.location.search).get('term')) setSelTerm(String(active.id));
     }).catch(console.error);
   }
 
@@ -142,7 +125,7 @@ export function OfferingsTab() {
       });
       setOfferings(data);
     } catch (err) {
-      notify('Error: ' + (err.response?.data ? JSON.stringify(err.response.data) : err.message));
+      notify('Error: ' + apiErrorText(err));
     } finally {
       setSubmitting((prev) => ({ ...prev, [subjectId]: false }));
     }
@@ -282,15 +265,15 @@ export function OfferingsTab() {
                 >
                   <span style={{
                     background: 'var(--app-panel)', border: '1px solid var(--app-border)',
-                    color: 'var(--app-muted)', borderRadius: 5,
-                    padding: '3px 10px', fontSize: 11, fontFamily: 'monospace', flexShrink: 0,
+                    color: 'var(--app-muted)', borderRadius: 5, width: 96, textAlign: 'center', boxSizing: 'border-box',
+                    padding: '3px 8px', fontSize: 11, fontFamily: 'monospace', flexShrink: 0,
                   }}>{subject.code}</span>
 
                   <span style={{ fontWeight: 500, fontSize: 14, color: 'var(--app-text)', flex: 1 }}>
                     {subject.name}
                   </span>
 
-                  <span style={{ fontSize: 12, color: 'var(--app-muted)', flexShrink: 0 }}>
+                  <span style={{ fontSize: 12, color: 'var(--app-muted)', flexShrink: 0, width: 56, textAlign: 'right' }}>
                     {subject.units} {subject.units === 1 ? 'unit' : 'units'}
                   </span>
 
@@ -299,6 +282,7 @@ export function OfferingsTab() {
                     border: `1px solid ${subjectOfferings.length > 0 ? 'var(--app-accent)' : 'var(--app-border)'}`,
                     color: subjectOfferings.length > 0 ? 'var(--app-accent)' : 'var(--app-muted)',
                     borderRadius: 20, padding: '2px 10px', fontSize: 11, fontWeight: 600, flexShrink: 0,
+                    width: 92, textAlign: 'center', boxSizing: 'border-box',
                   }}>
                     {subjectOfferings.length} {subjectOfferings.length === 1 ? 'offering' : 'offerings'}
                   </span>
@@ -312,44 +296,27 @@ export function OfferingsTab() {
                   <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
                     {subjectOfferings.length > 0 && (
                       <div style={{ overflowX: 'auto' }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                        <table style={{ ...s.table, tableLayout: 'fixed', fontSize: 12.5 }}>
+                          <colgroup>
+                            <col style={{ width: 150 }} /><col style={{ width: '22%' }} /><col /><col style={{ width: 110 }} /><col style={{ width: 140 }} />
+                          </colgroup>
                           <thead>
-                            <tr style={{ background: 'var(--app-panel)' }}>
-                              {['Offer Code', 'Teacher', 'Schedule', 'Room', 'Slots'].map((h) => (
-                                <th key={h} style={{
-                                  padding: '7px 14px', textAlign: 'left', fontSize: 10,
-                                  fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase',
-                                  color: 'var(--app-muted)', borderBottom: '1px solid var(--app-border)',
-                                }}>{h}</th>
-                              ))}
+                            <tr>
+                              {['Offer Code', 'Teacher', 'Schedule', 'Room', 'Slots'].map((h) => <th key={h} style={s.th}>{h}</th>)}
                             </tr>
                           </thead>
                           <tbody>
-                            {subjectOfferings.map((o, i) => (
-                              <tr key={o.id} style={{
-                                background: i % 2 === 0 ? 'transparent' : 'rgba(148, 163, 184, 0.08)',
-                                borderBottom: '1px solid var(--app-border)',
-                              }}>
-                                <td style={{ padding: '8px 14px', fontFamily: 'monospace', color: 'var(--app-accent)', fontSize: 12 }}>
-                                  {o.offer_code}
-                                </td>
-                                <td style={{ padding: '8px 14px', color: 'var(--app-text)' }}>
-                                  {o.teacher_name || <span style={{ color: 'var(--app-muted)' }}>-</span>}
-                                </td>
-                                <td style={{ padding: '8px 14px', color: 'var(--app-muted)' }}>{o.schedule}</td>
-                                <td style={{ padding: '8px 14px', color: 'var(--app-muted)' }}>
-                                  {o.room || <span style={{ color: 'var(--app-muted)' }}>-</span>}
-                                </td>
-                                <td style={{ padding: '8px 14px' }}>
-                                  <span style={{
-                                    color: o.available_slots > 0 ? 'var(--app-accent)' : c.danger,
-                                    fontWeight: 600,
-                                  }}>
+                            {subjectOfferings.map((o) => (
+                              <tr key={o.id}>
+                                <td style={{ ...s.td, fontFamily: 'monospace', color: 'var(--app-accent)', whiteSpace: 'nowrap' }}>{o.offer_code}</td>
+                                <td style={s.td}>{o.teacher_name || <span style={{ color: c.muted }}>Unassigned</span>}</td>
+                                <td style={{ ...s.td, color: c.muted }}>{o.schedule}</td>
+                                <td style={{ ...s.td, color: c.muted }}>{o.room || '-'}</td>
+                                <td style={{ ...s.td, whiteSpace: 'nowrap' }}>
+                                  <span style={{ color: o.available_slots > 0 ? 'var(--app-accent)' : c.danger, fontWeight: 600 }}>
                                     {o.current_slots}/{o.max_slots}
                                   </span>
-                                  <span style={{ color: 'var(--app-muted)', fontSize: 11, marginLeft: 4 }}>
-                                    ({o.available_slots} open)
-                                  </span>
+                                  <span style={{ color: c.muted, fontSize: 11, marginLeft: 4 }}>({o.available_slots} open)</span>
                                 </td>
                               </tr>
                             ))}

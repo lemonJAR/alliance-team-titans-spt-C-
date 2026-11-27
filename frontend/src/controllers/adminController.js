@@ -22,8 +22,6 @@ export {
   updateGrade,
   deleteGrade,
   fetchGradeReport,
-  exportGradeReportCsv,
-  exportGradeReportExcel,
   fetchAuditLogs,
   adminUpdateUser,
   adminDeleteUser,

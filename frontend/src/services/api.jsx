@@ -116,14 +116,11 @@ export const fetchGrades   = (params)        => api.get('/system/grades/', { par
 export const submitGrade   = (payload)       => api.post('/system/grades/', payload);
 export const updateGrade   = (id, payload)   => api.patch(`/system/grades/${id}/`, payload);
 export const deleteGrade   = (id)            => api.delete(`/system/grades/${id}/`);
-export const exportMyGrades = () => api.get('/system/grades/export/', { responseType: 'blob' });
 export const fetchGradeHistory = (gradeId) => api.get(`/system/grades/${gradeId}/history/`);
 export const fetchGradeTimeline = (params) => api.get('/system/grades/timeline/', { params });
 
 // ── SYSTEM: Reports (admin) ────────────────────────────────────────────────
 export const fetchGradeReport = (params) => api.get('/system/reports/grades/', { params });
-export const exportGradeReportCsv = (params) => api.get('/system/reports/grades/export/', { params, responseType: 'blob' });
-export const exportGradeReportExcel = (params) => api.get('/system/reports/grades/export-xlsx/', { params, responseType: 'blob' });
 
 
 // ── SYSTEM: Faculty & Students (admin) ───────────────────────────────────────

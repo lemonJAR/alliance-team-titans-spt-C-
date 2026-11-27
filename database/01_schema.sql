@@ -217,7 +217,6 @@ CREATE TABLE
         entity VARCHAR(60) NULL,
         entity_id INT NULL,
         details TEXT NULL,
-        ip_address VARCHAR(45) NULL,
         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         INDEX idx_audit_action (action),
         INDEX idx_audit_actor (actor_id),

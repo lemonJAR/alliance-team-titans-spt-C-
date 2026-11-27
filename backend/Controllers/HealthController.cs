@@ -1,14 +1,13 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using SptApi.Data;
+using SptApi.Services;
 
 namespace SptApi.Controllers;
 
-[ApiController]
 [Route("api/health")]
-public class HealthController(SptDbContext db) : ControllerBase
+public class HealthController(IHealthService health) : ApiControllerBase
 {
+    // GET /api/health
     [HttpGet]
     public async Task<IActionResult> Get() =>
-        Ok(new { status = "ok", students = await db.Students.CountAsync() });
+        Respond(await health.CheckAsync());
 }

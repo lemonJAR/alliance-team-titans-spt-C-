@@ -7,7 +7,6 @@ export {
   selectSchedule,
   fetchTerms,
   getMyGrades,
-  exportMyGrades,
   changePassword,
   fetchGradeTimeline,
   fetchNotifications,

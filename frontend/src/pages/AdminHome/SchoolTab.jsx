@@ -1,22 +1,16 @@
-import React, { useState, useEffect, useRef } from 'react';
-import Icon from '../../components/Icons';
-import { notify, confirmDialog } from '../../components/toastBus';
-import { PageHeader, PanelTitle, Field, SectionHeader, StatCard } from '../../components/ui';
-import { s, c, fmtGrade, parseCsv, UserPagination, escapeHtml, MultiSelect } from './AdminShared';
+import { useState, useEffect } from 'react';
+import { notify } from '../../components/toastBus';
+import { PageHeader, PanelTitle, Field } from '../../components/ui';
+import { s, c, apiErrorText } from './adminHelpers';
+import { MultiSelect, GroupPager } from './AdminShared';
+import { useUrlState } from '../../hooks/useUrlState';
 import {
   addCollege, addDegreeProgram, addSubject,
   fetchCollege, fetchProgram, fetchSubjects,
-  adminCreateTeacher, fetchTeachers,
-  adminCreateStudent, fetchStudents,
   fetchSemesterLoads, addSemesterLoad,
-  fetchTerms, createTerm, fetchOfferings, createOffering,
-  fetchTeachers as fetchAllTeachers,
-  getEnrollmentQueue, approveRejectEnrollments,
-  fetchGrades, updateGrade, deleteGrade,
-  fetchGradeReport, exportGradeReportCsv, exportGradeReportExcel,
-  fetchAuditLogs, adminUpdateUser, adminDeleteUser, adminDeleteStudentRecord,
-  fetchNotifications,
 } from '../../controllers/adminController';
+
+const SETUP_SECTIONS = ['colleges', 'programs', 'subjects', 'loads'];
 
 export function SchoolTab() {
   const [colleges,      setColleges]      = useState([]);
@@ -28,11 +22,10 @@ export function SchoolTab() {
   const [prog,    setProg]    = useState({ college: '', name: '', code: '' });
   const [subject, setSubject] = useState({ program: '', name: '', code: '', year_level: '1', semester: '1', units: '3', prerequisites: [] });
   const [semload, setSemload] = useState({ program: '', year_level: '1', semester: '1', max_units: '27' });
-  const [loadFilter, setLoadFilter] = useState('');
-  const [loadCardPage, setLoadCardPage] = useState(1);
-  const [loadRowPage, setLoadRowPage] = useState(1);
   const [setLoadOpen, setSetLoadOpen] = useState(false);
-  const [setupSection, setSetupSection] = useState('colleges');
+  // Both live in the URL so a refresh stays on the same section and college.
+  const [setupSection, setSetupSection] = useUrlState('setup', 'colleges', SETUP_SECTIONS);
+  const [loadCollege, setLoadCollege] = useUrlState('college', '');
 
 useEffect(() => {
   Promise.all([loadColleges(), loadPrograms(), loadSemLoads()]);
@@ -61,7 +54,7 @@ useEffect(() => {
       await addCollege({ name: col.name, code: col.code.toUpperCase() });
       notify(`OK: College "${col.name} (${col.code})" added.`);
       setCol({ name: '', code: '' }); loadColleges();
-    } catch (err) { notify('Error: ' + (err.response?.data ? JSON.stringify(err.response.data) : err.message)); }
+    } catch (err) { notify('Error: ' + apiErrorText(err)); }
   }
 
   async function handleAddProgram(e) {
@@ -70,7 +63,7 @@ useEffect(() => {
       await addDegreeProgram({ college: parseInt(prog.college), name: prog.name, code: prog.code.toUpperCase() });
       notify(`OK: Program "${prog.name} (${prog.code})" added.`);
       setProg({ college: '', name: '', code: '' }); loadPrograms();
-    } catch (err) { notify('Error: ' + (err.response?.data ? JSON.stringify(err.response.data) : err.message)); }
+    } catch (err) { notify('Error: ' + apiErrorText(err)); }
   }
 
   async function handleAddSubject(e) {
@@ -88,7 +81,7 @@ useEffect(() => {
       notify(`OK: Subject "${subject.name}" added.`);
       setSubject({ program: subject.program, name: '', code: '', year_level: '1', semester: '1', units: '3', prerequisites: [] });
       fetchSubjects(subject.program).then(({ data }) => setPrereqOptions(data)).catch(console.error);
-    } catch (err) { notify('Error: ' + (err.response?.data ? JSON.stringify(err.response.data) : err.message)); }
+    } catch (err) { notify('Error: ' + apiErrorText(err)); }
   }
 
   async function handleAddSemLoad(e) {
@@ -103,34 +96,20 @@ useEffect(() => {
       notify('OK: Semester load set.');
       setSemload({ program: '', year_level: '1', semester: '1', max_units: '27' });
       loadSemLoads();
-    } catch (err) { notify('Error: ' + (err.response?.data ? JSON.stringify(err.response.data) : err.message)); }
+    } catch (err) { notify('Error: ' + apiErrorText(err)); }
   }
 
-  const groupedLoads = semLoads.reduce((acc, sl) => {
-    const key = `${sl.program_name} (${sl.program_code})`;
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(sl);
+  // Semester loads grouped college -> program. Only ONE college is shown at a time.
+  const loadsByCollege = semLoads.reduce((acc, sl) => {
+    const college = sl.college_name ? `${sl.college_name} (${sl.college_code})` : 'Unassigned';
+    const program = `${sl.program_name} (${sl.program_code})`;
+    acc[college] ??= {};
+    (acc[college][program] ??= []).push(sl);
     return acc;
   }, {});
-
-  const filteredLoadKeys = loadFilter
-    ? Object.keys(groupedLoads).filter((k) => k === loadFilter)
-    : Object.keys(groupedLoads);
-
-  const LOAD_CARDS_PER_PAGE = 6;
-  const LOAD_ROWS_PER_PAGE = 8;
-  const loadCardPageCount = Math.max(1, Math.ceil(filteredLoadKeys.length / LOAD_CARDS_PER_PAGE));
-  const visibleLoadCards = !loadFilter
-    ? filteredLoadKeys.slice((loadCardPage - 1) * LOAD_CARDS_PER_PAGE, loadCardPage * LOAD_CARDS_PER_PAGE)
-    : filteredLoadKeys;
-
-  useEffect(() => {
-    queueMicrotask(() => setLoadCardPage(1));
-  }, [loadFilter]);
-
-  useEffect(() => {
-    queueMicrotask(() => setLoadRowPage(1));
-  }, [loadFilter, semLoads.length]);
+  const collegeKeys = Object.keys(loadsByCollege).sort();
+  const currentCollege = collegeKeys.includes(loadCollege) ? loadCollege : collegeKeys[0];
+  const programsInCollege = currentCollege ? loadsByCollege[currentCollege] : {};
 
   return (
     <>
@@ -329,139 +308,75 @@ useEffect(() => {
         </div>
 
         <div style={{ ...s.panel, minWidth: 0, padding: 0, gap: 0, overflow: 'hidden' }}>
-          <div style={{ padding: '10px 18px', background: 'var(--app-accent-bg)', borderBottom: '1px solid var(--app-border)', display: 'flex', alignItems: 'center', gap: 10 }}>
-            <PanelTitle>Semester Loads by Program</PanelTitle>
+          <div style={{ padding: '10px 18px', background: 'var(--app-accent-bg)', borderBottom: '1px solid var(--app-border)', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <PanelTitle>Semester Loads by College</PanelTitle>
             <div style={{ marginLeft: 'auto' }}>
-              <select style={{ ...s.input, width: 'auto', fontSize: 12, padding: '6px 10px' }}
-                value={loadFilter} onChange={(e) => setLoadFilter(e.target.value)}>
-                <option value="">All Programs</option>
-                {Object.keys(groupedLoads).map((k) => <option key={k} value={k}>{k}</option>)}
-              </select>
+              <GroupPager groups={collegeKeys} value={currentCollege} onChange={setLoadCollege} label="College" />
             </div>
           </div>
 
-          {!loadFilter ? (
-            filteredLoadKeys.length === 0 ? (
-              <div style={{ ...s.comingSoon, minHeight: 360, padding: 24, boxSizing: 'border-box' }}>
-                <div style={{ fontSize: 32, opacity: 0.3 }}>*</div>
-                <div style={{ fontSize: 13, color: 'var(--app-muted)' }}>No semester loads configured yet.</div>
-              </div>
-            ) : (
-              <>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, padding: 16 }}>
-                {visibleLoadCards.map((programName) => (
-                  <button
-                    key={programName}
-                    type="button"
-                    onClick={() => setLoadFilter(programName)}
-                    style={{
-                      ...s.submitBtn(false),
-                      marginTop: 0,
-                      minHeight: 84,
-                      textAlign: 'left',
-                      padding: '14px 16px',
-                      background: c.card,
-                      color: c.text,
-                      borderColor: c.border,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'center',
-                      gap: 6,
-                    }}
-                  >
-                    <span style={{ color: c.accent, fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                      {programName}
-                    </span>
-                    <span style={{ color: c.muted, fontSize: 12 }}>
-                      {groupedLoads[programName].length} semester {groupedLoads[programName].length === 1 ? 'load' : 'loads'}
-                    </span>
-                  </button>
-                ))}
-              </div>
-              <div style={{ padding: '0 16px' }}>
-                <UserPagination
-                  page={loadCardPage}
-                  totalPages={loadCardPageCount}
-                  totalItems={filteredLoadKeys.length}
-                  pageSize={LOAD_CARDS_PER_PAGE}
-                  onPageChange={setLoadCardPage}
-                  itemLabel="programs"
-                />
-              </div>
-              </>
-            )
-          ) : filteredLoadKeys.length === 0 ? (
-            <div style={{ ...s.comingSoon, minHeight: 360, padding: 24, boxSizing: 'border-box' }}>
-              <div style={{ fontSize: 32, opacity: 0.3 }}>*</div>
-              <div style={{ fontSize: 13, color: 'var(--app-muted)' }}>No semester loads configured for this program.</div>
+          {collegeKeys.length === 0 ? (
+            <div style={{ ...s.comingSoon, minHeight: 240, padding: 24, boxSizing: 'border-box' }}>
+              <div style={{ fontSize: 13, color: c.muted }}>No semester loads configured yet.</div>
             </div>
-          ) : filteredLoadKeys.map((progName) => (
-            <div key={progName} style={{ ...s.panel, gap: 0, padding: 0, overflow: 'hidden' }}>
-              <div style={{
-                padding: '10px 18px', background: 'var(--app-accent-bg)', borderBottom: '1px solid var(--app-border)',
-                fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
-                color: 'var(--app-accent)', display: 'flex', alignItems: 'center', gap: 6,
-              }}>
-                <span style={{ width: 6, height: 6, background: 'var(--app-accent)', borderRadius: '50%', display: 'inline-block' }} />
-                {progName}
-              </div>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                <thead>
-                  <tr style={{ background: 'var(--app-panel)' }}>
-                    {['Year', 'Semester', 'Units', 'Subjects'].map((h) => (
-                      <th key={h} style={{
-                        padding: '8px 16px', textAlign: 'left', fontSize: 10, fontWeight: 600,
-                        letterSpacing: '0.08em', textTransform: 'uppercase',
-                        color: 'var(--app-muted)', borderBottom: '1px solid var(--app-border)',
-                      }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {[...groupedLoads[progName]]
-                    .sort((a, b) => a.year_level - b.year_level || a.semester - b.semester)
-                    .slice((loadRowPage - 1) * LOAD_ROWS_PER_PAGE, loadRowPage * LOAD_ROWS_PER_PAGE)
-                    .map((sl, i) => (
-                      <tr key={sl.id} style={{ background: i % 2 === 0 ? 'transparent' : 'rgba(148, 163, 184, 0.08)', borderBottom: '1px solid var(--app-border)' }}>
-                        <td style={{ padding: '10px 16px', color: 'var(--app-text)' }}>Year {sl.year_level}</td>
-                        <td style={{ padding: '10px 16px', color: 'var(--app-muted)' }}>{sl.semester === 1 ? '1st Semester' : '2nd Semester'}</td>
-                        <td style={{ padding: '10px 16px' }}>
-                          <span style={{
-                            background: 'var(--app-accent-bg)', border: '1px solid var(--app-accent)', color: 'var(--app-accent)',
-                            borderRadius: 4, padding: '2px 10px', fontSize: 12, fontWeight: 600,
-                          }}>{sl.max_units}</span>
-                        </td>
-                        <td style={{ padding: '10px 16px' }}>
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                            {sl.subjects?.length > 0
-                              ? sl.subjects.map(subject => (
-                                  <span key={subject.id} style={{
-                                    background: 'var(--app-panel)', border: '1px solid var(--app-border)',
-                                    color: 'var(--app-muted)', borderRadius: 4, padding: '2px 8px', fontSize: 11,
-                                  }}>
-                                    {subject.code} - {subject.name} <span style={{ color: 'var(--app-accent)' }}>({subject.units}u)</span>
-                                  </span>
-                                ))
-                              : <span style={{ color: 'var(--app-muted)', fontSize: 12 }}>No subjects yet</span>
-                            }
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
-              <UserPagination
-                page={loadRowPage}
-                totalPages={Math.max(1, Math.ceil(groupedLoads[progName].length / LOAD_ROWS_PER_PAGE))}
-                totalItems={groupedLoads[progName].length}
-                pageSize={LOAD_ROWS_PER_PAGE}
-                onPageChange={setLoadRowPage}
-                itemLabel="semester loads"
-              />
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: 16 }}>
+              {Object.keys(programsInCollege).sort().map((progName) => (
+                <div key={progName} style={{ border: '1px solid var(--app-border)', borderRadius: 10, overflow: 'hidden' }}>
+                  <div style={{
+                    padding: '10px 16px', borderBottom: '1px solid var(--app-border)',
+                    fontSize: 12, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase',
+                    color: c.accent, display: 'flex', alignItems: 'center', gap: 8,
+                  }}>
+                    {progName}
+                    <span style={{ marginLeft: 'auto', fontWeight: 500, color: c.muted, textTransform: 'none', letterSpacing: 0 }}>
+                      {programsInCollege[progName].length} semester {programsInCollege[progName].length === 1 ? 'load' : 'loads'}
+                    </span>
+                  </div>
+                  <table style={s.table}>
+                    <colgroup>
+                      <col style={{ width: 110 }} /><col style={{ width: 150 }} /><col style={{ width: 100 }} /><col />
+                    </colgroup>
+                    <thead>
+                      <tr>{['Year', 'Semester', 'Max Units', 'Subjects'].map((h) => <th key={h} style={s.th}>{h}</th>)}</tr>
+                    </thead>
+                    <tbody>
+                      {[...programsInCollege[progName]]
+                        .sort((a, b) => a.year_level - b.year_level || a.semester - b.semester)
+                        .map((sl) => (
+                          <tr key={sl.id}>
+                            <td style={s.td}>Year {sl.year_level}</td>
+                            <td style={{ ...s.td, color: c.muted }}>{sl.semester === 1 ? '1st Semester' : '2nd Semester'}</td>
+                            <td style={s.td}>
+                              <span style={{
+                                background: 'var(--app-accent-bg)', border: '1px solid var(--app-accent)', color: 'var(--app-accent)',
+                                borderRadius: 4, padding: '2px 10px', fontSize: 12, fontWeight: 600,
+                              }}>{sl.max_units}</span>
+                            </td>
+                            <td style={s.td}>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                                {sl.subjects?.length > 0
+                                  ? sl.subjects.map((sub) => (
+                                      <span key={sub.id} style={{
+                                        background: 'var(--app-panel)', border: '1px solid var(--app-border)',
+                                        color: 'var(--app-muted)', borderRadius: 4, padding: '2px 8px', fontSize: 11,
+                                      }}>
+                                        {sub.code} - {sub.name} <span style={{ color: 'var(--app-accent)' }}>({sub.units}u)</span>
+                                      </span>
+                                    ))
+                                  : <span style={{ color: 'var(--app-muted)', fontSize: 12 }}>No subjects yet</span>}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              ))}
             </div>
-          ))}
-          </div>
+          )}
         </div>
+          </div>
         </div>
         )}
       </div>

@@ -2,6 +2,8 @@
 
 Links open the exact file and line in VS Code (Ctrl+Click in the editor, or click in Markdown Preview).
 
+> **Out of date after the post-mock-defense refactor.** The backend now follows Controller → Service → Repository, so logic that used to live in the controllers is now in `backend/Services/` and database access is in `backend/Repositories/`. Many file and line links below point to the old layout. CSV/Excel export and manual employee/student IDs have also been removed. Use [Architecture.md](Architecture.md) for the current structure.
+
 ---
 
 ## 0. The 30-second pitch

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useUrlState } from '../hooks/useUrlState';
 import {
   fetchTeacherOfferings,
   fetchOfferingEnrollments,
@@ -37,6 +38,8 @@ export default function TeacherHome() {
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [offerings, setOfferings] = useState([]);
   const [selected, setSelected] = useState(null);
+  // The open class is kept in the URL (?offering=12) so a refresh reopens it.
+  const [offeringParam, setOfferingParam] = useUrlState('offering', '');
   const [teacherProfile, setTeacherProfile] = useState(null);
   const [enrollments, setEnrollments] = useState([]);
   const [grades, setGrades] = useState([]);
@@ -49,7 +52,7 @@ export default function TeacherHome() {
       const { data } = await fetchTeacherOfferings();
       setOfferings(data);
       if (data.length && !selected) {
-        selectOffering(data[0]);
+        selectOffering(data.find((o) => String(o.id) === offeringParam) ?? data[0]);
       }
     } catch (err) {
       console.error(err);
@@ -84,6 +87,7 @@ export default function TeacherHome() {
       subjectId: off.subject_id ?? off.subject,
     };
     setSelected(offering);
+    setOfferingParam(String(offering.id));
     setEnrollments([]);
     setGrades([]);
     setErrors({});

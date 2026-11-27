@@ -1,22 +1,18 @@
-import React, { useState, useEffect, useRef } from 'react';
-import Icon from '../../components/Icons';
+import { useState, useEffect } from 'react';
 import { notify, confirmDialog } from '../../components/toastBus';
-import { PageHeader, PanelTitle, Field, SectionHeader, StatCard } from '../../components/ui';
-import { s, c, fmtGrade, parseCsv, UserPagination, escapeHtml, MultiSelect } from './AdminShared';
+import { PanelTitle, Field } from '../../components/ui';
+import { s, c, paginate, apiErrorText } from './adminHelpers';
+import { UserPagination } from './AdminShared';
+import { useUrlState, useUrlPage } from '../../hooks/useUrlState';
 import {
-  addCollege, addDegreeProgram, addSubject,
-  fetchCollege, fetchProgram, fetchSubjects,
-  adminCreateTeacher, fetchTeachers,
-  adminCreateStudent, fetchStudents,
-  fetchSemesterLoads, addSemesterLoad,
-  fetchTerms, createTerm, fetchOfferings, createOffering,
-  fetchTeachers as fetchAllTeachers,
-  getEnrollmentQueue, approveRejectEnrollments,
-  fetchGrades, updateGrade, deleteGrade,
-  fetchGradeReport, exportGradeReportCsv, exportGradeReportExcel,
-  fetchAuditLogs, adminUpdateUser, adminDeleteUser, adminDeleteStudentRecord,
-  fetchNotifications,
+  fetchTeachers, fetchStudents, adminUpdateUser, adminDeleteUser, adminDeleteStudentRecord,
 } from '../../controllers/adminController';
+
+const smallBtn = (tone) => ({
+  ...s.paginationButton(false),
+  padding: '6px 10px',
+  ...(tone === 'danger' ? { borderColor: 'var(--app-danger)', color: 'var(--app-danger)' } : {}),
+});
 
 export function UserManagementTab() {
   const USERS_PER_PAGE = 10;
@@ -26,8 +22,10 @@ export function UserManagementTab() {
   const [loading, setLoading] = useState(true);
   const [editingUser, setEditingUser] = useState(null);
   const [editSaving, setEditSaving] = useState(false);
-  const [userAccountTab, setUserAccountTab] = useState('faculty');
-  const [userPage, setUserPage] = useState(1);
+  // Sub-tab and page live in the URL so a refresh keeps the same view.
+  const [userAccountTab, setUserAccountTabRaw] = useUrlState('accounts', 'faculty', ['faculty', 'student']);
+  const [userPage, setUserPage] = useUrlPage('upage');
+  const setUserAccountTab = (tab) => { setUserAccountTabRaw(tab); setUserPage(1); };
 
   async function reloadUsers() {
     const [tRes, sRes] = await Promise.all([fetchTeachers(), fetchStudents()]);
@@ -52,23 +50,18 @@ export function UserManagementTab() {
   const filteredTeachers = teachers.filter(matches);
   const filteredStudents = students.filter(matches);
   const activeUsers = userAccountTab === 'faculty' ? filteredTeachers : filteredStudents;
-  const totalUserPages = Math.max(1, Math.ceil(activeUsers.length / USERS_PER_PAGE));
-  const visibleUsers = activeUsers.slice((userPage - 1) * USERS_PER_PAGE, userPage * USERS_PER_PAGE);
+  const userPageData = paginate(activeUsers, userPage, USERS_PER_PAGE);
+  const visibleUsers = userPageData.visible;
+  const totalUserPages = userPageData.totalPages;
 
-  useEffect(() => {
-    queueMicrotask(() => setUserPage(1));
-  }, [userAccountTab, search]);
-
-  useEffect(() => {
-    queueMicrotask(() => setUserPage((page) => Math.min(page, totalUserPages)));
-  }, [totalUserPages]);
+  const changeSearch = (value) => { setSearch(value); setUserPage(1); };
 
   async function toggleActive(userId, isActive) {
     try {
       await adminUpdateUser(userId, { is_active: !isActive });
       await reloadUsers();
     } catch (err) {
-      notify('Failed to update user: ' + (err.response?.data ? JSON.stringify(err.response.data) : err.message));
+      notify('Failed to update user: ' + apiErrorText(err));
     }
   }
 
@@ -91,8 +84,8 @@ export function UserManagementTab() {
     e.preventDefault();
     if (!editingUser) return;
 
-    if (!editingUser.first_name.trim() || !editingUser.last_name.trim() || !editingUser.email.trim()) {
-      notify('First name, last name, and email are required.');
+    if (!editingUser.first_name.trim() || !editingUser.last_name.trim()) {
+      notify('First name and last name are required.');
       return;
     }
 
@@ -102,24 +95,23 @@ export function UserManagementTab() {
         first_name: editingUser.first_name.trim(),
         middle_name: editingUser.middle_name.trim(),
         last_name: editingUser.last_name.trim(),
-        email: editingUser.email.trim(),
       });
       await reloadUsers();
       setEditingUser(null);
     } catch (err) {
-      notify('Failed to update user: ' + (err.response?.data ? JSON.stringify(err.response.data) : err.message));
+      notify('Failed to update user: ' + apiErrorText(err));
     } finally {
       setEditSaving(false);
     }
   }
 
   async function deleteUser(userId, label) {
-    if (!await confirmDialog(`Delete ${label}? This will permanently remove the account and related profile data.`)) return;
+    if (!await confirmDialog(`Delete ${label}? The account is deactivated (soft delete): it can no longer sign in, but its grades and history are kept.`)) return;
     try {
       await adminDeleteUser(userId);
       await reloadUsers();
     } catch (err) {
-      notify('Failed to delete user: ' + (err.response?.data ? JSON.stringify(err.response.data) : err.message));
+      notify('Failed to delete user: ' + apiErrorText(err));
     }
   }
 
@@ -136,7 +128,7 @@ export function UserManagementTab() {
   return (
     <>
       {editingUser && (
-        <div style={{ ...s.panel, maxWidth: 420 }}>
+        <div style={{ ...s.panel, maxWidth: 460, flex: '0 0 auto' }}>
           <PanelTitle>Edit User Account</PanelTitle>
           <form onSubmit={saveEditingUser} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ display: 'flex', gap: 8 }}>
@@ -167,14 +159,8 @@ export function UserManagementTab() {
                 required
               />
             </Field>
-            <Field label="Email">
-              <input
-                style={s.input}
-                type="email"
-                value={editingUser.email}
-                onChange={(e) => setEditingUser((prev) => ({ ...prev, email: e.target.value }))}
-                required
-              />
+            <Field label="Email" hint="The sign-in email can't be changed here.">
+              <input style={{ ...s.input, opacity: 0.7 }} type="email" value={editingUser.email} readOnly />
             </Field>
             <div style={{ display: 'flex', gap: 8 }}>
               <button type="submit" style={s.submitBtn(editSaving)} disabled={editSaving}>
@@ -216,7 +202,7 @@ export function UserManagementTab() {
                 style={{ ...s.input, maxWidth: 280 }}
                 placeholder="Search by name, email, or ID"
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => changeSearch(e.target.value)}
               />
             </div>
           </div>
@@ -226,13 +212,13 @@ export function UserManagementTab() {
               {filteredTeachers.length === 0 ? (
                 <div style={{ color: c.muted }}>No teachers found.</div>
               ) : (
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <table style={s.table}>
                   <thead>
-                    <tr style={{ background: 'var(--app-panel)' }}>
+                    <tr>
                       {['Name', 'Email', 'Employee ID', 'Department', 'Status', 'Action'].map((h) => (
                         <th
                           key={h}
-                          style={h === 'Action' ? { ...(s.th || {}), paddingLeft: 24 } : s.th}
+                          style={s.th}
                         >
                           {h}
                         </th>
@@ -244,25 +230,25 @@ export function UserManagementTab() {
                       <tr key={t.id}>
                         <td style={s.td}>{t.full_name}</td>
                         <td style={s.td}>{t.email}</td>
-                        <td style={s.td}>{t.employee_id}</td>
+                        <td style={{ ...s.td, ...s.mono }}>{t.employee_id}</td>
                         <td style={s.td}>{t.department || '--'}</td>
                         <td style={s.td}>{t.is_active ? 'Active' : 'Inactive'}</td>
-                        <td style={{ ...(s.td || {}), paddingLeft: 24 }}>
+                        <td style={s.td}>
                           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                             <button
-                              style={s.submitBtn(false)}
+                              style={smallBtn()}
                               onClick={() => editUser(t)}
                             >
                               Edit
                             </button>
                             <button
-                              style={s.submitBtn(false)}
+                              style={smallBtn()}
                               onClick={() => toggleActive(t.user_id, t.is_active)}
                             >
                               {t.is_active ? 'Deactivate' : 'Activate'}
                             </button>
                             <button
-                              style={{ ...s.submitBtn(false), borderColor: c.danger, color: c.danger }}
+                              style={smallBtn('danger')}
                               onClick={() => deleteUser(t.user_id, `${t.full_name} (${t.email})`)}
                             >
                               Delete
@@ -276,7 +262,7 @@ export function UserManagementTab() {
               )}
               {filteredTeachers.length > 0 && (
                 <UserPagination
-                  page={userPage}
+                  page={userPageData.current}
                   totalPages={totalUserPages}
                   totalItems={filteredTeachers.length}
                   pageSize={USERS_PER_PAGE}
@@ -291,13 +277,13 @@ export function UserManagementTab() {
               {filteredStudents.length === 0 ? (
                 <div style={{ color: c.muted }}>No students found.</div>
               ) : (
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <table style={s.table}>
                   <thead>
-                    <tr style={{ background: 'var(--app-panel)' }}>
+                    <tr>
                       {['Name', 'Email', 'Student ID', 'Program', 'Status', 'Action'].map((h) => (
                         <th
                           key={h}
-                          style={h === 'Action' ? { ...(s.th || {}), paddingLeft: 24 } : s.th}
+                          style={s.th}
                         >
                           {h}
                         </th>
@@ -309,19 +295,19 @@ export function UserManagementTab() {
                       <tr key={st.id}>
                         <td style={s.td}>{st.registered ? st.full_name : <em style={{ color: c.muted }}>Not registered yet</em>}</td>
                         <td style={s.td}>{st.registered ? st.email : '--'}</td>
-                        <td style={s.td}>{st.student_id}</td>
+                        <td style={{ ...s.td, ...s.mono }}>{st.student_id}</td>
                         <td style={s.td}>{st.program_name || '--'}</td>
                         <td style={s.td}>{!st.registered ? 'Not registered' : st.is_active ? 'Active' : 'Inactive'}</td>
-                        <td style={{ ...(s.td || {}), paddingLeft: 24 }}>
+                        <td style={s.td}>
                           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                             {st.registered ? (
                               <>
-                                <button style={s.submitBtn(false)} onClick={() => editUser(st)}>Edit</button>
-                                <button style={s.submitBtn(false)} onClick={() => toggleActive(st.user_id, st.is_active)}>
+                                <button style={smallBtn()} onClick={() => editUser(st)}>Edit</button>
+                                <button style={smallBtn()} onClick={() => toggleActive(st.user_id, st.is_active)}>
                                   {st.is_active ? 'Deactivate' : 'Activate'}
                                 </button>
                                 <button
-                                  style={{ ...s.submitBtn(false), borderColor: c.danger, color: c.danger }}
+                                  style={smallBtn('danger')}
                                   onClick={() => deleteUser(st.user_id, `${st.full_name} (${st.email})`)}
                                 >
                                   Delete account
@@ -329,7 +315,7 @@ export function UserManagementTab() {
                               </>
                             ) : (
                               <button
-                                style={{ ...s.submitBtn(false), borderColor: c.danger, color: c.danger }}
+                                style={smallBtn('danger')}
                                 onClick={() => removeStudentId(st)}
                               >
                                 Remove ID
@@ -344,7 +330,7 @@ export function UserManagementTab() {
               )}
               {filteredStudents.length > 0 && (
                 <UserPagination
-                  page={userPage}
+                  page={userPageData.current}
                   totalPages={totalUserPages}
                   totalItems={filteredStudents.length}
                   pageSize={USERS_PER_PAGE}

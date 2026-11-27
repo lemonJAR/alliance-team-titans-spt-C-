@@ -1,22 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
-import Icon from '../../components/Icons';
-import { notify, confirmDialog } from '../../components/toastBus';
-import { PageHeader, PanelTitle, Field, SectionHeader, StatCard } from '../../components/ui';
-import { s, c, fmtGrade, parseCsv, UserPagination, escapeHtml, MultiSelect } from './AdminShared';
-import {
-  addCollege, addDegreeProgram, addSubject,
-  fetchCollege, fetchProgram, fetchSubjects,
-  adminCreateTeacher, fetchTeachers,
-  adminCreateStudent, fetchStudents,
-  fetchSemesterLoads, addSemesterLoad,
-  fetchTerms, createTerm, fetchOfferings, createOffering,
-  fetchTeachers as fetchAllTeachers,
-  getEnrollmentQueue, approveRejectEnrollments,
-  fetchGrades, updateGrade, deleteGrade,
-  fetchGradeReport, exportGradeReportCsv, exportGradeReportExcel,
-  fetchAuditLogs, adminUpdateUser, adminDeleteUser, adminDeleteStudentRecord,
-  fetchNotifications,
-} from '../../controllers/adminController';
+import { useState } from 'react';
+import { notify } from '../../components/toastBus';
+import { Field } from '../../components/ui';
+import { s, c } from './adminHelpers';
+import { createTerm } from '../../controllers/adminController';
 
 export function CreateTermModal({ onClose, onCreated }) {
   const [form, setForm] = useState({

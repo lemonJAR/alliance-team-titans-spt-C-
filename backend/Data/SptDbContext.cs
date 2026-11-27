@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Pomelo.EntityFrameworkCore.MySql.Scaffolding.Internal;
@@ -102,9 +102,6 @@ public partial class SptDbContext : DbContext
                 .HasMaxLength(60)
                 .HasColumnName("entity");
             entity.Property(e => e.EntityId).HasColumnName("entity_id");
-            entity.Property(e => e.IpAddress)
-                .HasMaxLength(45)
-                .HasColumnName("ip_address");
             entity.Property(e => e.UserEmail)
                 .HasMaxLength(190)
                 .HasColumnName("user_email");

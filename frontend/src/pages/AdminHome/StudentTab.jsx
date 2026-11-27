@@ -1,27 +1,17 @@
-import React, { useState, useEffect, useRef } from 'react';
-import Icon from '../../components/Icons';
+import { useState, useEffect, useRef } from 'react';
 import { notify, confirmDialog } from '../../components/toastBus';
-import { PageHeader, PanelTitle, Field, SectionHeader, StatCard } from '../../components/ui';
-import { s, c, fmtGrade, parseCsv, UserPagination, escapeHtml, MultiSelect } from './AdminShared';
-import {
-  addCollege, addDegreeProgram, addSubject,
-  fetchCollege, fetchProgram, fetchSubjects,
-  adminCreateTeacher, fetchTeachers,
-  adminCreateStudent, fetchStudents,
-  fetchSemesterLoads, addSemesterLoad,
-  fetchTerms, createTerm, fetchOfferings, createOffering,
-  fetchTeachers as fetchAllTeachers,
-  getEnrollmentQueue, approveRejectEnrollments,
-  fetchGrades, updateGrade, deleteGrade,
-  fetchGradeReport, exportGradeReportCsv, exportGradeReportExcel,
-  fetchAuditLogs, adminUpdateUser, adminDeleteUser, adminDeleteStudentRecord,
-  fetchNotifications,
-} from '../../controllers/adminController';
+import { PanelTitle, Field } from '../../components/ui';
+import { s, c, parseCsv, paginate, apiErrorText } from './adminHelpers';
+import { UserPagination, GroupPager } from './AdminShared';
+import { useUrlState, useUrlPage } from '../../hooks/useUrlState';
+import { fetchCollege, fetchProgram, adminCreateStudent, fetchStudents } from '../../controllers/adminController';
+
+const STUDENTS_PER_PAGE = 10;
 
 export function StudentTab() {
   const emptyForm = {
     first_name: '', last_name: '', middle_name: '',
-    email: '', student_id: '', college: '', program: '', year_level: '1',
+    email: '', college: '', program: '', year_level: '1',
   };
 
   const [form, setForm]             = useState(emptyForm);
@@ -30,9 +20,10 @@ export function StudentTab() {
   const [allPrograms, setAllPrograms] = useState([]);
   const [students, setStudents]     = useState([]);
   const [loading, setLoading]       = useState(false);
-  const [filterProg, setFilterProg] = useState('');
-  const [expandedStudent, setExpandedStudent] = useState(null);
-  const [activeStudentTab, setActiveStudentTab] = useState('manual');
+  // Sub-tab, program and page live in the URL so a refresh keeps the same view.
+  const [activeStudentTab, setActiveStudentTab] = useUrlState('students', 'manual', ['manual', 'directory']);
+  const [filterProg, setFilterProg] = useUrlState('program', '');
+  const [studentPage, setStudentPage] = useUrlPage('spage');
   const csvInputRef = useRef(null);
   const [csvRows, setCsvRows] = useState([]);
   const [csvError, setCsvError] = useState('');
@@ -69,21 +60,20 @@ export function StudentTab() {
     e.preventDefault();
     setLoading(true);
     try {
-      await adminCreateStudent({
+      const { data } = await adminCreateStudent({
         first_name: form.first_name, last_name: form.last_name, middle_name: form.middle_name,
-        email: form.email, student_id: form.student_id,
+        email: form.email,
         program: parseInt(form.program), year_level: parseInt(form.year_level),
       });
-      notify(`OK: Student account created. Credentials sent to ${form.email}.`);
+      notify(`OK: Student account created with student ID ${data.student_id}. Credentials sent to ${form.email}.`);
       setForm(emptyForm); setPrograms([]); loadStudents();
     } catch (err) {
-      notify('Error: ' + (err.response?.data ? JSON.stringify(err.response.data) : err.message));
+      notify('Error: ' + apiErrorText(err));
     } finally { setLoading(false); }
   }
 
   function validateStudentCsv(rows) {
     const emails = new Set();
-    const studentIds = new Set();
     return rows.map((row) => {
       const errors = [];
       const college = colleges.find((item) => item.code?.toLowerCase() === row.college_code?.toLowerCase());
@@ -91,14 +81,12 @@ export function StudentTab() {
         item.code?.toLowerCase() === row.program_code?.toLowerCase()
         && (!college || String(item.college) === String(college.id) || String(item.college_id) === String(college.id))
       );
-      if (!row.first_name || !row.last_name || !row.email || !row.student_id || !row.college_code || !row.program_code || !row.year_level) {
+      if (!row.first_name || !row.last_name || !row.email || !row.college_code || !row.program_code || !row.year_level) {
         errors.push('Required fields are missing');
       }
       if (row.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row.email)) errors.push('Invalid email');
       if (row.email && emails.has(row.email.toLowerCase())) errors.push('Duplicate email in file');
-      if (row.student_id && studentIds.has(row.student_id.toLowerCase())) errors.push('Duplicate student ID in file');
       if (row.email) emails.add(row.email.toLowerCase());
-      if (row.student_id) studentIds.add(row.student_id.toLowerCase());
       if (!college && row.college_code) errors.push('College code not found');
       if (!program && row.program_code) errors.push('Program code not found for college');
       if (!/^[1-4]$/.test(row.year_level)) errors.push('Year level must be 1, 2, 3, or 4');
@@ -147,13 +135,12 @@ export function StudentTab() {
           last_name: row.last_name,
           middle_name: row.middle_name,
           email: row.email,
-          student_id: row.student_id,
           program: row.program.id,
           year_level: parseInt(row.year_level),
         });
         created += 1;
       } catch (error) {
-        failures.push(`Row ${row.rowNumber}: ${error.response?.data ? JSON.stringify(error.response.data) : error.message}`);
+        failures.push(`Row ${row.rowNumber}: ${apiErrorText(error)}`);
       }
     }
     setCsvImporting(false);
@@ -169,16 +156,11 @@ export function StudentTab() {
     return acc;
   }, {});
 
-  const progKeys = filterProg
-    ? Object.keys(grouped).filter((p) => p === filterProg)
-    : Object.keys(grouped);
-
-  const bySemester = (subjects) => subjects.reduce((acc, sub) => {
-    const key = `${sub.year_level}-${sub.semester}`;
-    if (!acc[key]) acc[key] = { year_level: sub.year_level, semester: sub.semester, items: [] };
-    acc[key].items.push(sub);
-    return acc;
-  }, {});
+  const progKeys = Object.keys(grouped).sort();
+  const currentProg = progKeys.includes(filterProg) ? filterProg : progKeys[0];
+  const progRows = currentProg ? grouped[currentProg] : [];
+  const studentPageData = paginate(progRows, studentPage, STUDENTS_PER_PAGE);
+  const changeProgram = (program) => { setFilterProg(program); setStudentPage(1); };
 
   return (
     <>
@@ -206,7 +188,7 @@ export function StudentTab() {
           <div style={{ ...s.tabPanel, paddingBottom: 8, borderBottom: '1px solid var(--app-border)' }}>
             <div style={{ ...s.panel, maxWidth: 720, margin: '0 auto' }}>
               <PanelTitle>Import Student CSV</PanelTitle>
-              <p style={s.hint}>Upload a prepared CSV with student account, college, program, and year-level fields.</p>
+              <p style={s.hint}>Columns: first_name, middle_name, last_name, email, college_code, program_code, year_level. Student IDs are assigned automatically.</p>
               {csvError && <div style={{ color: c.danger, fontSize: 12, marginTop: 10 }}>{csvError}</div>}
               {csvRows.length > 0 && (
                 <div style={{ marginTop: 12 }}>
@@ -234,7 +216,7 @@ export function StudentTab() {
             <div style={{ display: 'flex', justifyContent: 'center' }}>
         <div style={{ ...s.panel, width: '100%', maxWidth: 760, minWidth: 0 }}>
           <PanelTitle>New Student Account</PanelTitle>
-          <p style={s.hint}>A temporary password will be emailed. Student selects subjects on first login.</p>
+          <p style={s.hint}>The student ID (e.g. 2026-0001) is assigned automatically. A temporary password is emailed to the student.</p>
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
               <Field label="First Name">
@@ -253,10 +235,6 @@ export function StudentTab() {
             <Field label="Email">
               <input style={s.input} type="email" value={form.email}
                 onChange={(e) => set('email', e.target.value)} required />
-            </Field>
-            <Field label="Student ID">
-              <input style={s.input} type="text" value={form.student_id}
-                onChange={(e) => set('student_id', e.target.value)} required />
             </Field>
             <Field label="College">
               <select style={s.input} value={form.college}
@@ -293,116 +271,60 @@ export function StudentTab() {
 
         {activeStudentTab === 'directory' && (
           <div style={{ ...s.tabPanel, paddingBottom: 8 }}>
-        <div style={{ ...s.panel, minWidth: 0, padding: 0, gap: 0, overflow: 'hidden' }}>
-          <div style={{ padding: '10px 18px', background: c.accentBg, borderBottom: '1px solid var(--app-border)', display: 'flex', alignItems: 'center', gap: 10 }}>
-            <PanelTitle>Students by Program</PanelTitle>
-            <div style={{ marginLeft: 'auto' }}>
-              <select style={{ ...s.input, width: 'auto', fontSize: 12, padding: '6px 10px' }}
-                value={filterProg} onChange={(e) => setFilterProg(e.target.value)}>
-                <option value="">All Programs</option>
-                {Object.keys(grouped).map((p) => <option key={p} value={p}>{p}</option>)}
-              </select>
-            </div>
-          </div>
-
-          {progKeys.length === 0 && (
-            <div style={{ ...s.comingSoon, minHeight: 420, padding: 24, boxSizing: 'border-box' }}>
-              <div style={{ fontSize: 36, opacity: 0.3 }}>*</div>
-              <div style={{ fontSize: 14, color: c.muted }}>No students enrolled yet.</div>
-            </div>
-          )}
-
-          {progKeys.map((prog) => (
-            <div key={prog} style={{ ...s.panel, gap: 0, padding: 0, overflow: 'hidden' }}>
-              <div style={{
-                padding: '10px 18px', background: c.accentBg, borderBottom: '1px solid var(--app-border)',
-                fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
-                color: c.accent, display: 'flex', alignItems: 'center', gap: 6,
-              }}>
-                <span style={{ width: 6, height: 6, background: c.accent, borderRadius: '50%', display: 'inline-block' }} />
-                {prog}
-                <span style={{ marginLeft: 'auto', fontWeight: 400, color: c.muted, fontSize: 11 }}>
-                  {grouped[prog].length} {grouped[prog].length === 1 ? 'student' : 'students'}
-                </span>
+            <div style={{ ...s.panel, minWidth: 0, padding: 0, gap: 0, overflow: 'hidden' }}>
+              <div style={{ padding: '10px 18px', background: c.accentBg, borderBottom: '1px solid var(--app-border)', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                <PanelTitle>Students by Program</PanelTitle>
+                <div style={{ marginLeft: 'auto' }}>
+                  <GroupPager groups={progKeys} value={currentProg} onChange={changeProgram} label="Program" />
+                </div>
               </div>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                <thead>
-                  <tr style={{ background: 'var(--app-panel)' }}>
-                    {['Name', 'Student ID', 'Email', 'Year', 'Enrolled', 'Subjects'].map((h, index) => (
-                      <th key={h} style={{
-                        padding: '8px 16px', textAlign: index === 0 ? 'left' : 'center', fontSize: 10, fontWeight: 600,
-                        letterSpacing: '0.08em', textTransform: 'uppercase',
-                        color: c.muted, borderBottom: '1px solid var(--app-border)',
-                      }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {grouped[prog].map((st, i) => {
-                    const isExpanded = expandedStudent === st.student_id;
-                    const semGroups  = bySemester(st.enrolled_subjects || []);
-                    const semKeys    = Object.keys(semGroups).sort();
-                    return (
-                      <React.Fragment key={st.student_id}>
-                        <tr style={{ background: i % 2 === 0 ? 'transparent' : 'rgba(148, 163, 184, 0.08)', borderBottom: isExpanded ? 'none' : '1px solid var(--app-border)' }}>
-                          <td style={{ padding: '10px 16px', fontWeight: 500, color: c.text, textAlign: 'left' }}>{st.full_name}</td>
-                          <td style={{ padding: '10px 16px', fontFamily: 'monospace', color: c.muted, fontSize: 12, textAlign: 'center' }}>{st.student_id}</td>
-                          <td style={{ padding: '10px 16px', color: c.muted, fontSize: 12, textAlign: 'center' }}>{st.email}</td>
-                          <td style={{ padding: '10px 16px', color: c.muted, fontSize: 12, textAlign: 'center' }}>Year {st.year_level}</td>
-                          <td style={{ padding: '10px 16px', color: c.muted, fontSize: 12, textAlign: 'center' }}>
-                            {st.date_joined ? new Date(st.date_joined).toLocaleDateString() : '-'}
+              {progKeys.length === 0 ? (
+                <div style={{ ...s.comingSoon, minHeight: 240, padding: 24, boxSizing: 'border-box' }}>
+                  <div style={{ fontSize: 14, color: c.muted }}>No students yet.</div>
+                </div>
+              ) : (
+                <div style={{ paddingBottom: 12 }}>
+                  <table style={s.table}>
+                    <colgroup>
+                      <col style={{ width: '26%' }} /><col style={{ width: 120 }} /><col style={{ width: '28%' }} />
+                      <col style={{ width: 80 }} /><col style={{ width: 110 }} /><col />
+                    </colgroup>
+                    <thead>
+                      <tr>{['Name', 'Student ID', 'Email', 'Year', 'Joined', 'Status'].map((h) => <th key={h} style={s.th}>{h}</th>)}</tr>
+                    </thead>
+                    <tbody>
+                      {studentPageData.visible.map((st) => (
+                        <tr key={st.id}>
+                          <td style={{ ...s.td, fontWeight: 500 }}>
+                            {st.registered ? st.full_name : <em style={{ color: c.muted, fontWeight: 400 }}>Not registered yet</em>}
                           </td>
-                          <td style={{ padding: '10px 16px', textAlign: 'center' }}>
-                            <button onClick={() => setExpandedStudent(isExpanded ? null : st.student_id)} style={{
-                              background: isExpanded ? c.accentBg : 'var(--app-panel)',
-                              border: `1px solid ${isExpanded ? 'var(--app-accent)' : 'var(--app-border)'}`,
-                              color: isExpanded ? c.accent : c.muted,
-                              borderRadius: 5, padding: '3px 10px', fontSize: 11,
-                              cursor: 'pointer', fontFamily: 'inherit',
-                            }}>
-                              {st.enrolled_subjects?.length || 0} subjects {isExpanded ? 'v' : '>'}
-                            </button>
+                          <td style={{ ...s.td, ...s.mono }}>{st.student_id}</td>
+                          <td style={{ ...s.td, color: c.muted, fontSize: 12 }}>{st.email || '--'}</td>
+                          <td style={{ ...s.td, color: c.muted }}>Year {st.year_level}</td>
+                          <td style={{ ...s.td, color: c.muted, fontSize: 12 }}>
+                            {st.date_joined ? new Date(st.date_joined).toLocaleDateString() : '--'}
+                          </td>
+                          <td style={{ ...s.td, color: c.muted, fontSize: 12 }}>
+                            {!st.registered ? 'Not registered' : st.is_active ? 'Active' : 'Inactive'}
                           </td>
                         </tr>
-                        {isExpanded && (
-                          <tr style={{ background: 'var(--app-panel)', borderBottom: '1px solid var(--app-border)' }}>
-                            <td colSpan={6} style={{ padding: '12px 24px 16px' }}>
-                              {semKeys.length === 0
-                                ? <span style={{ color: c.muted, fontSize: 12 }}>No subjects enrolled yet.</span>
-                                : (
-                                  <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
-                                    {semKeys.map((key) => {
-                                      const { year_level, semester, items } = semGroups[key];
-                                      return (
-                                        <div key={key}>
-                                          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: c.muted, marginBottom: 6 }}>
-                                            Year {year_level} - Sem {semester}
-                                          </div>
-                                          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                                            {items.map((sub) => (
-                                              <span key={sub.id} style={{
-                                                background: c.accentBg, border: '1px solid var(--app-accent)',
-                                                color: c.accent, borderRadius: 4, padding: '3px 8px', fontSize: 11,
-                                              }}>{sub.name}</span>
-                                            ))}
-                                          </div>
-                                        </div>
-                                      );
-                                  })}
-                                </div>
-                              )}
-                          </td>
-                        </tr>
-                      )}
-                    </React.Fragment>
-                  );
-                })}
-              </tbody>
-            </table>
+                      ))}
+                    </tbody>
+                  </table>
+                  <div style={{ padding: '0 16px' }}>
+                    <UserPagination
+                      page={studentPageData.current}
+                      totalPages={studentPageData.totalPages}
+                      totalItems={progRows.length}
+                      pageSize={STUDENTS_PER_PAGE}
+                      onPageChange={setStudentPage}
+                      itemLabel="students"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-        ))}
-        </div>
-        </div>
         )}
       </div>
     </>

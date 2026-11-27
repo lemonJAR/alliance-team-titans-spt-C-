@@ -1,22 +1,16 @@
-import React, { useState, useEffect, useRef } from 'react';
-import Icon from '../../components/Icons';
-import { notify, confirmDialog } from '../../components/toastBus';
-import { PageHeader, PanelTitle, Field, SectionHeader, StatCard } from '../../components/ui';
-import { s, c, fmtGrade, parseCsv, UserPagination, escapeHtml, MultiSelect } from './AdminShared';
-import {
-  addCollege, addDegreeProgram, addSubject,
-  fetchCollege, fetchProgram, fetchSubjects,
-  adminCreateTeacher, fetchTeachers,
-  adminCreateStudent, fetchStudents,
-  fetchSemesterLoads, addSemesterLoad,
-  fetchTerms, createTerm, fetchOfferings, createOffering,
-  fetchTeachers as fetchAllTeachers,
-  getEnrollmentQueue, approveRejectEnrollments,
-  fetchGrades, updateGrade, deleteGrade,
-  fetchGradeReport, exportGradeReportCsv, exportGradeReportExcel,
-  fetchAuditLogs, adminUpdateUser, adminDeleteUser, adminDeleteStudentRecord,
-  fetchNotifications,
-} from '../../controllers/adminController';
+import { useState, useEffect } from 'react';
+import { notify } from '../../components/toastBus';
+import { SectionHeader } from '../../components/ui';
+import { s, c } from './adminHelpers';
+
+// Badge colours for each enrollment status.
+const STATUS_COLORS = {
+  PENDING:   { bg: 'var(--app-panel)', border: 'var(--app-border)', color: 'var(--app-muted)' },
+  APPROVED:  { bg: c.accentBg, border: 'var(--app-accent)', color: c.accent },
+  REJECTED:  { bg: c.dangerBg, border: c.dangerBorder, color: c.danger },
+  ENROLLED:  { bg: c.infoBg, border: c.infoBorder, color: c.info },
+};
+import { getEnrollmentQueue, approveRejectEnrollments } from '../../controllers/adminController';
 
 export function ApprovalQueue() {
   const [queue,         setQueue]         = useState([]);

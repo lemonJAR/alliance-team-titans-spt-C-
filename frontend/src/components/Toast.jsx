@@ -37,7 +37,7 @@ export function ToastHost() {
       {dialog && (
         <div className="modal-backdrop" onMouseDown={() => close(false)}>
           <div className="modal-card" role="dialog" aria-modal="true" onMouseDown={(e) => e.stopPropagation()}>
-            <p style={{ margin: '0 0 18px', color: 'var(--app-text)', lineHeight: 1.5 }}>{dialog.message}</p>
+            <p style={{ margin: '0 0 18px', color: 'var(--app-text)', lineHeight: 1.5, whiteSpace: 'pre-line' }}>{dialog.message}</p>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <button type="button" className="ui-btn" onClick={() => close(false)}>Cancel</button>
               <button type="button" className={`ui-btn ${dialog.danger ? 'danger' : 'primary'}`} autoFocus onClick={() => close(true)}>

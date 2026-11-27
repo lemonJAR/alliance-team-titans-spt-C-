@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace SptApi.Models;
@@ -20,8 +20,6 @@ public partial class AuditLog
     public int? EntityId { get; set; }
 
     public string? Details { get; set; }
-
-    public string? IpAddress { get; set; }
 
     public DateTime CreatedAt { get; set; }
 }

@@ -2,7 +2,9 @@ using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using SptApi.Common;
 using SptApi.Data;
+using SptApi.Repositories;
 using SptApi.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -15,12 +17,10 @@ if (string.IsNullOrWhiteSpace(cs))
         "environment variable ConnectionStrings__Default (deployment).");
 builder.Services.AddDbContext<SptDbContext>(o => o.UseMySql(cs, ServerVersion.AutoDetect(cs)));
 
-// ── Our services ──
+// ── Layers: Controller -> Service -> Repository -> SptDbContext ──
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddScoped<TokenService>();
-builder.Services.AddScoped<AuditService>();
-builder.Services.AddScoped<EmailTokenService>();
-builder.Services.AddSingleton<IEmailSender, ConsoleEmailSender>();   // swap for a real sender later
+builder.Services.AddRepositories();
+builder.Services.AddApplicationServices();
 
 // ── JWT authentication ──
 var jwtKey = builder.Configuration["Jwt:Key"];
@@ -31,8 +31,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(o =>
     {
         o.MapInboundClaims = false;   // keep claim names as written: sub, email, role
-        // A valid signature is not enough: a deactivated user (or one whose account was deleted) must lose
-        // access immediately instead of keeping a working token until it expires.
+        // A valid signature is not enough: a deactivated user must lose access immediately
+        // instead of keeping a working token until it expires.
         o.Events = new JwtBearerEvents
         {
             OnTokenValidated = async ctx =>
@@ -40,10 +40,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 var sub = ctx.Principal?.FindFirst("sub")?.Value;
                 if (!int.TryParse(sub, out var userId)) { ctx.Fail("Invalid token."); return; }
 
-                var db = ctx.HttpContext.RequestServices.GetRequiredService<SptDbContext>();
-                var active = await db.Users.Where(u => u.Id == userId)
-                    .Select(u => (bool?)(u.IsActive ?? true)).FirstOrDefaultAsync();
-                if (active != true) ctx.Fail("Account is inactive or no longer exists.");
+                var users = ctx.HttpContext.RequestServices.GetRequiredService<IUserRepository>();
+                if (!await users.IsActiveAsync(userId)) ctx.Fail("Account is inactive or no longer exists.");
             }
         };
         o.TokenValidationParameters = new TokenValidationParameters
