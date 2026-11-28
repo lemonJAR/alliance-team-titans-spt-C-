@@ -8,18 +8,26 @@ import { useSearchParams } from 'react-router-dom';
 //   const [tab, setTab] = useUrlState('tab', 'school', ['school', 'people']);
 //
 // `allowed` (optional) guards against stale or hand-edited URLs: unknown values fall back to the default.
+// URL changes made during the current tick, shared by every useUrlState hook (see setValue).
+let pendingParams = null;
+
 export function useUrlState(key, defaultValue, allowed) {
   const [params, setParams] = useSearchParams();
   const raw = params.get(key);
   const value = raw !== null && (!allowed || allowed.includes(raw)) ? raw : defaultValue;
 
   const setValue = useCallback((next) => {
-    setParams((prev) => {
-      const updated = new URLSearchParams(prev);
-      if (next === null || next === undefined || next === '' || next === defaultValue) updated.delete(key);
-      else updated.set(key, String(next));
-      return updated;
-    }, { replace: true });
+    // React Router's functional setParams does NOT queue: several calls in one event handler
+    // (e.g. setDept(x); setPage(1)) all start from the same old URL, so the last one wins and
+    // the earlier changes are lost. Collect every change made in the same tick into one shared
+    // set of params and send the merged result each time.
+    if (!pendingParams) {
+      pendingParams = new URLSearchParams(window.location.search);
+      queueMicrotask(() => { pendingParams = null; });
+    }
+    if (next === null || next === undefined || next === '' || next === defaultValue) pendingParams.delete(key);
+    else pendingParams.set(key, String(next));
+    setParams(new URLSearchParams(pendingParams), { replace: true });
   }, [key, defaultValue, setParams]);
 
   return [value, setValue];
